@@ -10,6 +10,12 @@ MacExplorer brings familiar tabs, a folder tree, drive overviews, and keyboard s
 
 **Early development · macOS 14+ · MIT licensed**
 
+## Download
+
+[Download Explorer 0.11.0 for Mac](https://downloads.bquick.io/explorer/releases/0.11.0/MacExplorer-0.11.0.dmg) · [Release notes and checksums](https://github.com/binaryquest/MacExplorer/releases/tag/v0.11.0)
+
+Open the DMG and drag **Explorer** into **Applications**. The app is Developer ID signed and notarized by Apple, with one universal download for Apple Silicon and Intel. Future updates are available through **Explorer → Check for Updates…**; automatic update preferences are in **Settings → Updates**.
+
 ![This Mac with drives, storage usage bars, and cloud locations](docs/images/this-mac.png)
 
 *All screenshots use fictional sample files, accounts, and storage figures.*
@@ -44,7 +50,7 @@ zsh scripts/build.sh
 open build/Explorer.app
 ```
 
-The build script creates `build/Explorer.app`, generates its icon, embeds Sparkle, and applies a local ad-hoc signature. Automatic updates are disabled in source builds. The first signed, notarized public release is being prepared.
+The build script creates `build/Explorer.app`, generates its icon, embeds Sparkle, and applies a local ad-hoc signature. Automatic updates are disabled in source builds; use the signed download above for automatic updates.
 
 The app appears as **Explorer** in macOS. Open **Explorer → Settings…** to change the global shortcut, appearance, startup behavior, and browsing defaults. The global shortcut works while Explorer is running, including when its last window is closed; it can be changed or disabled if it conflicts with another app.
 
@@ -85,7 +91,7 @@ To create safe screenshots of your own, see [the demo guide](docs/SCREENSHOTS.md
 
 The release pipeline builds universal DMGs, signs them with Developer ID, submits them for Apple notarization, and publishes signed Sparkle updates through Cloudflare R2. Official builds include **Check for Updates…** and update preferences.
 
-The first DMG is notarized, R2 hosting and GitHub signing secrets are configured, and an end-to-end upgrade through Explorer has passed. Public downloads are not published yet. Maintainers can follow the [release setup guide](docs/RELEASING.md) and [candidate validation report](docs/RELEASE-VALIDATION-0.11.0.md).
+Explorer 0.11.0 is available from [GitHub Releases](https://github.com/binaryquest/MacExplorer/releases/tag/v0.11.0) and the download link above. An end-to-end upgrade through Explorer has passed. Maintainers can follow the [release setup guide](docs/RELEASING.md) and [validation report](docs/RELEASE-VALIDATION-0.11.0.md).
 
 Sparkle and its bundled components retain their [third-party licenses](Support/Licenses/Sparkle.txt).
 

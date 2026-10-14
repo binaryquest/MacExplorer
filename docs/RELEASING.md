@@ -2,7 +2,7 @@
 
 Explorer is distributed directly for macOS 14+, as a universal DMG for Apple Silicon and Intel. The app identity is `io.bquick.explorer`, signed by Binary Quest Software Pty Ltd, team `B5M99337GK`.
 
-Local notarization, R2 hosting, and GitHub signing/notarization/Sparkle secrets are configured. An end-to-end update to the 0.11.0 candidate passed through Explorer's native updater on 14 October 2026. See the [validation report](RELEASE-VALIDATION-0.11.0.md) for evidence and remaining coverage limits. No public release tag or stable feed has been published.
+Explorer 0.11.0 was published on 14 October 2026 through the [tag-triggered release workflow](https://github.com/binaryquest/MacExplorer/actions/runs/38517672896). Local notarization, R2 hosting, and GitHub signing/notarization/Sparkle secrets are configured. The public installer and signed stable feed are live. See the [validation report](RELEASE-VALIDATION-0.11.0.md) for the successful native upgrade test, public artifact checks, and remaining coverage limits.
 
 ## Hosting
 
@@ -28,7 +28,7 @@ GitHub's `release` environment contains `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KE
 
 The same environment also contains all six Apple and Sparkle secrets listed below. The encrypted PKCS#12 export contains only the Binary Quest Developer ID Application identity; its export password was randomly generated. The notarization API key was validated with Apple, and the exported Sparkle private key signed the candidate DMG and verified against the existing public key. Temporary key exports were removed after secure upload through `gh secret set` on standard input. The original signing keys remain in the maintainer's Keychain.
 
-Public GET/HEAD requests, CORS, uncached metadata, and cached versioned files are checked with harmless temporary objects. The verifier sends an explicit `MacExplorer-ReleaseVerifier` user agent because Cloudflare rejects Python's generic default user agent. Explorer's Sparkle user agent is accepted. A small [hosting check](https://downloads.bquick.io/explorer/health.json) is available independently of releases; the installer and update feed are not published yet.
+Public GET/HEAD requests, CORS, uncached metadata, and cached versioned files are checked with harmless temporary objects. The verifier sends an explicit `MacExplorer-ReleaseVerifier` user agent because Cloudflare rejects Python's generic default user agent. Explorer's Sparkle user agent is accepted. A small [hosting check](https://downloads.bquick.io/explorer/health.json) is available independently of releases. The live [latest release metadata](https://downloads.bquick.io/explorer/stable/latest.json) supplies download details for the mini-site.
 
 ## Signing and notarization
 

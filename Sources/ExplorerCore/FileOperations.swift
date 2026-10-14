@@ -8,6 +8,8 @@ public enum FileOperation: Sendable {
     case newFolder(in: URL, name: String)
     case trash([URL])
     case color([URL], FinderColor)
+    case compress([URL], to: URL)
+    case extract(URL, to: URL)
 
     public var title: String {
         switch self {
@@ -17,6 +19,8 @@ public enum FileOperation: Sendable {
         case .newFolder: "New Folder"
         case .trash: "Trash"
         case .color: "Change Color Label"
+        case .compress: "Compress"
+        case .extract: "Extract All"
         }
     }
 }
@@ -98,6 +102,11 @@ public actor FileOperationEngine {
                         progress: ReportProgress = { _ in }) async -> OperationReport {
         guard !busy else { return failed("Another file operation is running.") }
         busy = true; defer { busy = false }
+        switch operation {
+        case let .compress(urls, target): return await archive(urls, to: target, extracting: false, resolve: resolve, progress: progress)
+        case let .extract(url, target): return await archive([url], to: target, extracting: true, resolve: resolve, progress: progress)
+        default: break
+        }
         var report = OperationReport()
         if case .color = operation { report.metadataOnly = true }
         var record = UndoRecord(title: operation.title, steps: [])
@@ -118,6 +127,7 @@ public actor FileOperationEngine {
             case let .newFolder(parent, name):
                 try Self.validateName(name); try FileSystem.validateDirectory(parent)
                 sources = [parent.resolvingSymlinksInPath().appendingPathComponent(name)]; destinationFolder = nil
+            case .compress, .extract: fatalError("Handled above")
             }
             for (index, source) in sources.enumerated() {
                 try Task.checkCancellation()
@@ -206,6 +216,73 @@ public actor FileOperationEngine {
         } catch is CancellationError { report.cancelled = true }
         catch { report.error = error.localizedDescription }
         if !record.steps.isEmpty { history.append(record) }
+        return report
+    }
+
+    private func archive(_ urls: [URL], to target: URL, extracting: Bool,
+                         resolve: ResolveConflict, progress: ReportProgress) async -> OperationReport {
+        var report = OperationReport()
+        let title = extracting ? "Extract All" : "Compress"
+        do {
+            guard target.isFileURL else { throw FileOperationError("Choose a local destination.") }
+            let sources = try normalizedSelection(urls)
+            guard !sources.isEmpty else { throw FileOperationError("Select at least one item.") }
+            var destination = canonicalItem(target)
+            try Self.validateName(destination.lastPathComponent)
+            let parent = destination.deletingLastPathComponent()
+            try FileSystem.validateDirectory(parent)
+            for source in sources {
+                if source == destination || sameIdentity(source, destination) || isInside(destination, source) || isInside(source, destination) {
+                    throw FileOperationError("Choose a destination outside the selected items.")
+                }
+            }
+            let originals = try sources.map { try snapshot($0) }
+            var replacing: Snapshot?
+            if exists(destination) {
+                let existing = try snapshot(destination)
+                let resolution = await resolve(FileConflict(source: sources[0], destination: destination, destinationIsDirectory: existing.isDirectory))
+                try Task.checkCancellation()
+                switch resolution.choice {
+                case .cancel: throw CancellationError()
+                case .skip: report.skipped = 1; return report
+                case .keepBoth: destination = uniqueCopy(of: destination, directory: extracting)
+                case .replace: replacing = existing
+                }
+            }
+            let workspace = parent.appendingPathComponent(".explorer-archive-\(UUID())")
+            try fm.createDirectory(at: workspace, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+            defer { try? fm.removeItem(at: workspace) } // Only our unpublished temporary output.
+            let output = workspace.appendingPathComponent(extracting ? "contents" : "output.zip")
+            for (source, original) in zip(sources, originals) { try requireUnchanged(source, original) }
+            await progress(OperationProgress(title: title, item: destination.lastPathComponent, index: 1, total: 1))
+            if extracting { try await ZIPArchives.extract(sources[0], to: output, workspace: workspace) }
+            else { try await ZIPArchives.compress(sources, to: output, workspace: workspace) }
+            try Task.checkCancellation()
+            for (source, original) in zip(sources, originals) { try requireUnchanged(source, original) }
+            let created = try snapshot(output)
+            var backup: URL?
+            var backupSnapshot: Snapshot?
+            if let replacing {
+                try requireUnchanged(destination, replacing)
+                backup = try trashItem(destination)
+                // Moving to Trash preserves the identity used by the undo preflight.
+                backupSnapshot = replacing
+            }
+            do { try exclusiveMove(output, destination) }
+            catch {
+                let failure = error
+                if let backup {
+                    do { try exclusiveMove(backup, destination) }
+                    catch { throw FileOperationError("\(failure.localizedDescription) The original destination remains at \(backup.path).") }
+                }
+                throw failure
+            }
+            var steps: [UndoStep] = [.remove(destination, created)]
+            if let backup, let backupSnapshot { steps.append(.restore(backup, destination, backupSnapshot)) }
+            history.append(UndoRecord(title: title, steps: steps))
+            report.completed = [destination]
+        } catch is CancellationError { report.cancelled = true }
+        catch { report.error = error.localizedDescription }
         return report
     }
 

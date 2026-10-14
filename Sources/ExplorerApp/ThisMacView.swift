@@ -212,6 +212,8 @@ final class ThisMacView: NSView, NSCollectionViewDataSource, NSCollectionViewDel
         menu.addItem(.separator())
         menu.addItem(ContextMenu.item("Copy as Path", symbol: "link") { [weak self] in self?.copyPath() })
         menu.addItem(ExternalApplications.terminalItem(folder: location.url, window: window))
+        menu.addItem(.separator())
+        menu.addItem(FileProperties.item(urls: [location.url], window: window))
     }
     @objc private func open() { openSelection() }
     @objc private func openInTab() { openSelection(newTab: true) }

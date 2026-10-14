@@ -6,8 +6,8 @@
   <key>CFBundleExecutable</key><string>Explorer</string>
   <key>CFBundleIdentifier</key><string>io.bquick.explorer</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.11.0</string>
-  <key>CFBundleVersion</key><string>25</string>
+  <key>CFBundleShortVersionString</key><string>0.11.1</string>
+  <key>CFBundleVersion</key><string>26</string>
   <key>ExplorerUpdatesEnabled</key><false/>
   <key>SUFeedURL</key><string>https://downloads.bquick.io/explorer/stable/appcast.xml</string>
   <key>SUPublicEDKey</key><string>/Imo2wrUqWknjjzrPTy6t4QjHf3odT3NusmrfZeTH74=</string>

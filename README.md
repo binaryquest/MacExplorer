@@ -6,7 +6,7 @@
 
 A native macOS file manager for people who like Windows Explorer.
 
-MacExplorer brings familiar tabs, a folder tree, drive overviews, and keyboard shortcuts to the Mac, with native Quick Look, thumbnails, and Finder color tags. Built with Swift and AppKit, with no third-party dependencies.
+MacExplorer brings familiar tabs, a folder tree, drive overviews, and keyboard shortcuts to the Mac, with native Quick Look, thumbnails, and Finder color tags. Built with Swift and AppKit, with Sparkle for signed software updates.
 
 **Early development · macOS 14+ · MIT licensed**
 
@@ -44,7 +44,7 @@ zsh scripts/build.sh
 open build/Explorer.app
 ```
 
-The build script creates `build/Explorer.app`, generates its icon, and applies a local ad-hoc signature. There is no signed, notarized installer or automatic updater yet.
+The build script creates `build/Explorer.app`, generates its icon, embeds Sparkle, and applies a local ad-hoc signature. Automatic updates are disabled in source builds. The first signed, notarized public release is being prepared.
 
 The app appears as **Explorer** in macOS. Open **Explorer → Settings…** to change the global shortcut, appearance, startup behavior, and browsing defaults. The global shortcut works while Explorer is running, including when its last window is closed; it can be changed or disabled if it conflicts with another app.
 
@@ -81,11 +81,13 @@ zsh scripts/test.sh
 
 To create safe screenshots of your own, see [the demo guide](docs/SCREENSHOTS.md).
 
-## Planned distribution
+## Releases and updates
 
-- Developer ID signing and Apple notarization.
-- A downloadable installer package and release pipeline.
-- Automatic update delivery with signed releases.
+The release pipeline builds universal DMGs, signs them with Developer ID, submits them for Apple notarization, and publishes signed Sparkle updates through Cloudflare R2. Official builds include **Check for Updates…** and update preferences.
+
+The first DMG is notarized, R2 hosting and GitHub signing secrets are configured, and an end-to-end upgrade through Explorer has passed. Public downloads are not published yet. Maintainers can follow the [release setup guide](docs/RELEASING.md) and [candidate validation report](docs/RELEASE-VALIDATION-0.11.0.md).
+
+Sparkle and its bundled components retain their [third-party licenses](Support/Licenses/Sparkle.txt).
 
 ## License
 

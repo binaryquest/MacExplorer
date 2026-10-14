@@ -18,7 +18,6 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       DEVELOPER_ID_APPLICATION: 'Developer ID Application: Binary Quest Software Pty Ltd (B5M99337GK)'
       NOTARY_PROFILE: explorer-ci
-      NOTARY_KEYCHAIN: ${{ runner.temp }}/explorer-signing.keychain-db
       PREVIOUS_APPCAST: ${{ github.workspace }}/build/release-state/previous-appcast.xml
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -36,6 +35,7 @@ jobs:
           assert os.environ['GITHUB_REF_NAME'] == 'v'+version, 'Tag and app version must match'
           with open(os.environ['GITHUB_ENV'],'a') as output:
               output.write('RELEASE_VERSION='+version+'\n')
+              output.write('NOTARY_KEYCHAIN='+os.environ['RUNNER_TEMP']+'/explorer-signing.keychain-db\n')
           PY
       - name: Test
         run: |

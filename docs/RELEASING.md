@@ -2,7 +2,7 @@
 
 Explorer is distributed directly for macOS 14+, as a universal DMG for Apple Silicon and Intel. The app identity is `io.bquick.explorer`, signed by Binary Quest Software Pty Ltd, team `B5M99337GK`.
 
-Local notarization and R2 hosting are configured. The first public release still needs the GitHub signing/notarization/Sparkle secrets and an end-to-end update check. Do not publish a version tag until these are ready.
+Local notarization, R2 hosting, and GitHub signing/notarization/Sparkle secrets are configured. An end-to-end update to the 0.11.0 candidate passed through Explorer's native updater on 14 October 2026. See the [validation report](RELEASE-VALIDATION-0.11.0.md) for evidence and remaining coverage limits. No public release tag or stable feed has been published.
 
 ## Hosting
 
@@ -25,6 +25,8 @@ The production bucket uses Standard storage in APAC, the default jurisdiction, a
 The account-owned token **MacExplorer releases** has object read/write access to this bucket only. Its S3 credentials are saved in the maintainer's login Keychain as a generic password with service `io.bquick.explorer.release.r2` and account `macexplorer-releases`. That entry contains a JSON object with `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `R2_ENDPOINT`; read it into a process environment without printing it or writing it into the repository.
 
 GitHub's `release` environment contains `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and the `R2_ENDPOINT` variable. The environment permits version tags matching `v*`; the workflow additionally verifies that the tagged commit belongs to `main`.
+
+The same environment also contains all six Apple and Sparkle secrets listed below. The encrypted PKCS#12 export contains only the Binary Quest Developer ID Application identity; its export password was randomly generated. The notarization API key was validated with Apple, and the exported Sparkle private key signed the candidate DMG and verified against the existing public key. Temporary key exports were removed after secure upload through `gh secret set` on standard input. The original signing keys remain in the maintainer's Keychain.
 
 Public GET/HEAD requests, CORS, uncached metadata, and cached versioned files are checked with harmless temporary objects. The verifier sends an explicit `MacExplorer-ReleaseVerifier` user agent because Cloudflare rejects Python's generic default user agent. Explorer's Sparkle user agent is accepted. A small [hosting check](https://downloads.bquick.io/explorer/health.json) is available independently of releases; the installer and update feed are not published yet.
 
@@ -124,6 +126,14 @@ Do not roll back by lowering version or build numbers. Publish a corrected build
 - Test a modified DMG/feed and confirm signature validation rejects it.
 
 No public release should be announced until notarization, the hosted feed, and the actual upgrade test pass.
+
+### Repeating an isolated upgrade check
+
+Use a disposable installed copy with a lower build number, the production bundle identifier and Sparkle public key, and a unique HTTPS test feed. Any changes to its `Info.plist` require signing, notarizing, and stapling that baseline again. Use the exact candidate DMG as the update target. When testing the first release without an older official build, clearly record that the baseline was made from the candidate with a lower version, as in the validation report.
+
+Back up the app's preferences and quit other copies before testing. Put the DMG, release notes, and re-signed appcast under a unique `/explorer/stable/qa/<UUID>/` prefix, which inherits the metadata cache bypass. Verify their HTTPS checksums, then use **Explorer → Check for Updates… → Install Update → Install and Relaunch**. Confirm the new process runs at the same installation path, its version and executable match the candidate, Gatekeeper and the stapled ticket pass, and saved tabs, favorites, and preferences survive.
+
+Afterward, quit the disposable copy, restore the original preferences, remove the temporary objects, purge only their exact URLs, and verify they return HTTP 404. Reopen the regular app. Keep local evidence under `.build/release-evidence/`; never commit preferences or private folder paths. Do not point the stable feed at test builds.
 
 ## References
 

@@ -85,7 +85,7 @@ To create safe screenshots of your own, see [the demo guide](docs/SCREENSHOTS.md
 
 The release pipeline builds universal DMGs, signs them with Developer ID, submits them for Apple notarization, and publishes signed Sparkle updates through Cloudflare R2. Official builds include **Check for Updates…** and update preferences.
 
-The first local DMG is notarized and R2 hosting is configured. CI signing credentials and an end-to-end upgrade test are still required before the first public release. Maintainers can follow the [release setup guide](docs/RELEASING.md).
+The first DMG is notarized, R2 hosting and GitHub signing secrets are configured, and an end-to-end upgrade through Explorer has passed. Public downloads are not published yet. Maintainers can follow the [release setup guide](docs/RELEASING.md) and [candidate validation report](docs/RELEASE-VALIDATION-0.11.0.md).
 
 Sparkle and its bundled components retain their [third-party licenses](Support/Licenses/Sparkle.txt).
 

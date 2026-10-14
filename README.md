@@ -12,7 +12,7 @@ MacExplorer brings familiar tabs, a folder tree, drive overviews, and keyboard s
 
 ## Download
 
-[Download Explorer 0.11.0 for Mac](https://downloads.bquick.io/explorer/releases/0.11.0/MacExplorer-0.11.0.dmg) · [Release notes and checksums](https://github.com/binaryquest/MacExplorer/releases/tag/v0.11.0)
+[Download Explorer for Mac](https://explorer.bquick.io/#download) · [Release notes and checksums](https://github.com/binaryquest/MacExplorer/releases/latest)
 
 Open the DMG and drag **Explorer** into **Applications**. The app is Developer ID signed and notarized by Apple, with one universal download for Apple Silicon and Intel. Future updates are available through **Explorer → Check for Updates…**; automatic update preferences are in **Settings → Updates**.
 
@@ -91,7 +91,7 @@ To create safe screenshots of your own, see [the demo guide](docs/SCREENSHOTS.md
 
 The release pipeline builds universal DMGs, signs them with Developer ID, submits them for Apple notarization, and publishes signed Sparkle updates through Cloudflare R2. Official builds include **Check for Updates…** and update preferences.
 
-Explorer 0.11.0 is available from [GitHub Releases](https://github.com/binaryquest/MacExplorer/releases/tag/v0.11.0) and the download link above. An end-to-end upgrade through Explorer has passed. Maintainers can follow the [release setup guide](docs/RELEASING.md) and [validation report](docs/RELEASE-VALIDATION-0.11.0.md).
+Official releases are available from [GitHub Releases](https://github.com/binaryquest/MacExplorer/releases/latest) and the download link above. An end-to-end upgrade through Explorer passed before the first release. Maintainers can follow the [release setup guide](docs/RELEASING.md) and [first-release validation report](docs/RELEASE-VALIDATION-0.11.0.md).
 
 Sparkle and its bundled components retain their [third-party licenses](Support/Licenses/Sparkle.txt).
 

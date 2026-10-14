@@ -202,11 +202,16 @@ final class ThisMacView: NSView, NSCollectionViewDataSource, NSCollectionViewDel
     func collectionView(_ collectionView: NSCollectionView, didDeselectItemsAt indexPaths: Set<IndexPath>) { onSelection?() }
     func openSelection(newTab: Bool = false) { if let selectedLocation { onOpen?(selectedLocation.url, newTab) } }
     func menuNeedsUpdate(_ menu: NSMenu) {
-        menu.removeAllItems()
-        guard selectedLocation != nil else { return }
-        for (title, action) in [("Open", #selector(open)), ("Open in New Tab", #selector(openInTab)), ("Open in Other Pane", #selector(openInOtherPane)), ("Copy Path", #selector(copyPath))] {
-            let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; menu.addItem(item)
+        ContextMenu.configure(menu)
+        guard let location = selectedLocation else { return }
+        for (title, action, symbol) in [("Open", #selector(open), "externaldrive"), ("Open in New Tab", #selector(openInTab), "plus.square.on.square"), ("Open in Other Pane", #selector(openInOtherPane), "rectangle.split.2x1")] {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title); menu.addItem(item)
         }
+        menu.addItem(ContextMenu.item("Open in New Window", symbol: "macwindow.badge.plus") { (NSApp.delegate as? AppDelegate)?.newWindow(urls: [location.url]) })
+        menu.addItem(.separator())
+        menu.addItem(ContextMenu.item("Copy as Path", symbol: "link") { [weak self] in self?.copyPath() })
+        menu.addItem(ExternalApplications.terminalItem(folder: location.url, window: window))
     }
     @objc private func open() { openSelection() }
     @objc private func openInTab() { openSelection(newTab: true) }

@@ -71,6 +71,21 @@ final class AppPreferences {
         get { defaults.bool(forKey: "explorer.showHidden") }
         set { set(newValue, for: "explorer.showHidden") }
     }
+    var terminalApplication: ApplicationChoice? {
+        get { application(for: "explorer.applications.terminal") }
+        set { setApplication(newValue, for: "explorer.applications.terminal") }
+    }
+    var editorApplication: ApplicationChoice? {
+        get { application(for: "explorer.applications.editor") }
+        set { setApplication(newValue, for: "explorer.applications.editor") }
+    }
+    private func application(for key: String) -> ApplicationChoice? {
+        defaults.data(forKey: key).flatMap { try? JSONDecoder().decode(ApplicationChoice.self, from: $0) }
+    }
+    private func setApplication(_ choice: ApplicationChoice?, for key: String) {
+        if let choice, let data = try? JSONEncoder().encode(choice) { set(data, for: key) }
+        else { defaults.removeObject(forKey: key); NotificationCenter.default.post(name: Self.changed, object: self) }
+    }
     func openingSession(restored: WorkspaceSession) -> WorkspaceSession {
         let path: String
         switch startupLocation {

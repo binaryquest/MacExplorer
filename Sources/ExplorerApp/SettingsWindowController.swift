@@ -58,6 +58,12 @@ final class ShortcutRecorder: NSButton {
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let preferences: AppPreferences
     private let shortcutController: GlobalShortcutController
+    private let updates: AppUpdateController
+    private let automaticChecks = NSButton(checkboxWithTitle: "Automatically check for updates", target: nil, action: nil)
+    private let automaticInstalls = NSButton(checkboxWithTitle: "Download and install updates automatically", target: nil, action: nil)
+    private let updateStatus = NSTextField(wrappingLabelWithString: "")
+    private let lastUpdateCheck = NSTextField(labelWithString: "")
+    private let checkUpdates = NSButton(title: "Check for Updates…", target: nil, action: nil)
     private let recorder = ShortcutRecorder()
     private let shortcutEnabled = NSButton(checkboxWithTitle: "Enable global shortcut", target: nil, action: nil)
     private let shortcutStatus = NSTextField(wrappingLabelWithString: "")
@@ -67,8 +73,9 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let hidden = NSButton(checkboxWithTitle: "Show hidden files and folders", target: nil, action: nil)
     private let startup = NSPopUpButton(), appearance = NSPopUpButton(), viewMode = NSPopUpButton(), scope = NSPopUpButton(), shortcutAction = NSPopUpButton()
 
-    init(preferences: AppPreferences = .shared, shortcutController: GlobalShortcutController) {
+    init(preferences: AppPreferences = .shared, shortcutController: GlobalShortcutController, updates: AppUpdateController) {
         self.preferences = preferences; self.shortcutController = shortcutController
+        self.updates = updates
         let window = SettingsWindow(contentRect: NSRect(x: 0, y: 0, width: 590, height: 480),
                                     styleMask: [.titled, .closable], backing: .buffered, defer: false)
         super.init(window: window)
@@ -78,7 +85,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         let general = NSViewController(); general.view = generalView()
         let keyboard = SettingsPageController(); keyboard.view = keyboardView()
         keyboard.onDisappear = { [weak self] in self?.recorder.cancel() }
-        for (controller, title, symbol) in [(general, "General", "gearshape"), (keyboard, "Shortcut", "keyboard")] {
+        let updatePage = NSViewController(); updatePage.view = updatesView()
+        for (controller, title, symbol) in [(general, "General", "gearshape"), (keyboard, "Shortcut", "keyboard"), (updatePage, "Updates", "arrow.triangle.2.circlepath")] {
             let item = NSTabViewItem(viewController: controller); item.label = title
             item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title); tabs.addTabViewItem(item)
         }
@@ -86,6 +94,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         window.contentViewController = tabs; window.center()
         NotificationCenter.default.addObserver(self, selector: #selector(refresh), name: AppPreferences.changed, object: preferences)
         NotificationCenter.default.addObserver(self, selector: #selector(refresh), name: NSApplication.didBecomeActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(refreshUpdates), name: AppUpdateController.changed, object: updates)
         refresh()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -156,6 +165,30 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             note("Explorer must be running. Closing all browser windows keeps the shortcut available; quitting Explorer disables it until the next launch. Enable Open Explorer at login in General to make it available after signing in.")
         ])
     }
+    private func updatesView() -> NSView {
+        automaticChecks.target = self; automaticChecks.action = #selector(automaticChecksChanged)
+        automaticInstalls.target = self; automaticInstalls.action = #selector(automaticInstallsChanged)
+        checkUpdates.bezelStyle = .rounded; checkUpdates.target = updates; checkUpdates.action = #selector(AppUpdateController.checkForUpdates(_:))
+        updateStatus.font = .systemFont(ofSize: 12); updateStatus.textColor = .secondaryLabelColor
+        lastUpdateCheck.font = .systemFont(ofSize: 12); lastUpdateCheck.textColor = .secondaryLabelColor
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Development"
+        return page("Keep Explorer up to date", subtitle: "Explorer \(version)", content: [
+            automaticChecks, automaticInstalls,
+            note("Automatic installation is optional. Explorer waits for file operations to finish before restarting for an update."),
+            checkUpdates, lastUpdateCheck, updateStatus
+        ])
+    }
+    @objc private func refreshUpdates() {
+        automaticChecks.state = updates.automaticallyChecks ? .on : .off
+        automaticChecks.isEnabled = updates.isAvailable
+        automaticInstalls.state = updates.automaticallyInstalls ? .on : .off
+        automaticInstalls.isEnabled = updates.isAvailable && updates.automaticallyChecks
+        checkUpdates.isEnabled = updates.canCheck
+        updateStatus.stringValue = updates.status
+        lastUpdateCheck.stringValue = updates.lastCheck.map { "Last checked: " + $0.formatted(date: .abbreviated, time: .shortened) } ?? "Not checked yet"
+    }
+    @objc private func automaticChecksChanged() { updates.automaticallyChecks = automaticChecks.state == .on }
+    @objc private func automaticInstallsChanged() { updates.automaticallyInstalls = automaticInstalls.state == .on }
     @objc private func refresh() {
         startup.selectItem(at: StartupLocation.allCases.firstIndex(of: preferences.startupLocation) ?? 0)
         appearance.selectItem(at: AppAppearance.allCases.firstIndex(of: preferences.appearance) ?? 0)
@@ -166,6 +199,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         shortcutAction.selectItem(at: preferences.shortcutOpensNewWindow ? 1 : 0)
         if !recorder.isRecording { recorder.title = preferences.shortcut.title; updateShortcutStatus() }
         refreshLoginStatus()
+        refreshUpdates()
     }
     private func refreshLoginStatus() {
         let state = SMAppService.mainApp.status

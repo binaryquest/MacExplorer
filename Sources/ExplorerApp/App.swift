@@ -22,12 +22,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let hotKeyRegistrar = CarbonHotKeyRegistrar()
     private lazy var globalShortcut = GlobalShortcutController(registrar: hotKeyRegistrar)
     private var settings: SettingsWindowController?
+    private lazy var updates = AppUpdateController()
     var current: ExplorerWindowController? {
         (NSApp.keyWindow?.windowController as? ExplorerWindowController) ?? (NSApp.mainWindow?.windowController as? ExplorerWindowController) ?? windows.last
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         DemoData.configure()
+        PreferenceMigration.run()
         NSApp.appearance = AppPreferences.shared.appearance.appearance
         if let icon = Bundle.main.url(forResource: "AppIcon", withExtension: "icns") { NSApp.applicationIconImage = NSImage(contentsOf: icon) }
         buildMenu()
@@ -50,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             newWindow()
         }
         NSApp.activate(ignoringOtherApps: true)
+        updates.start()
     }
 
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
@@ -105,9 +108,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         NSApp.activate(ignoringOtherApps: true)
     }
     @objc func showSettings(_ sender: Any?) {
-        if settings == nil { settings = SettingsWindowController(shortcutController: globalShortcut) }
+        if settings == nil { settings = SettingsWindowController(shortcutController: globalShortcut, updates: updates) }
         settings?.showWindow(nil); settings?.window?.makeKeyAndOrderFront(nil)
     }
+    @objc func checkForUpdates(_ sender: Any?) { updates.checkForUpdates(sender) }
     @objc private func preferencesChanged() {
         NSApp.appearance = AppPreferences.shared.appearance.appearance
         for controller in windows {
@@ -180,6 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(checkForUpdates) { return updates.canCheck }
         if item.action == #selector(showSettings) || item.action == #selector(newWindowAction) { return true }
         if NSApp.keyWindow === settings?.window { return item.action == #selector(closeTab) }
         if item.action == #selector(fileOperation), let raw = item.representedObject as? String, let action = FileAction(rawValue: raw) {
@@ -218,6 +223,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let app = submenu("Explorer")
         add(app, "About Explorer", #selector(NSApplication.orderFrontStandardAboutPanel(_:)), target: NSApp)
         add(app, "Settings…", #selector(showSettings), ",")
+        add(app, "Check for Updates…", #selector(checkForUpdates))
         app.addItem(.separator())
         add(app, "Hide Explorer", #selector(NSApplication.hide(_:)), "h", target: NSApp)
         add(app, "Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option], target: NSApp)

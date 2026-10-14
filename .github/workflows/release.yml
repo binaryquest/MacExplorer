@@ -1,0 +1,91 @@
+name: Release Explorer
+on:
+  push:
+    tags: ['v[0-9]*']
+permissions:
+  contents: read
+concurrency:
+  group: explorer-stable-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 90
+    environment: release
+    permissions:
+      contents: write
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      DEVELOPER_ID_APPLICATION: 'Developer ID Application: Binary Quest Software Pty Ltd (B5M99337GK)'
+      NOTARY_PROFILE: explorer-ci
+      NOTARY_KEYCHAIN: ${{ runner.temp }}/explorer-signing.keychain-db
+      PREVIOUS_APPCAST: ${{ github.workspace }}/build/release-state/previous-appcast.xml
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Verify tag belongs to main and matches the app
+        run: |
+          git merge-base --is-ancestor HEAD origin/main
+          python3 - <<'PY'
+          import os,sys
+          sys.path.insert(0,'scripts/release')
+          from config import app_info
+          info=app_info()
+          version=info['CFBundleShortVersionString']
+          assert os.environ['GITHUB_REF_NAME'] == 'v'+version, 'Tag and app version must match'
+          with open(os.environ['GITHUB_ENV'],'a') as output:
+              output.write('RELEASE_VERSION='+version+'\n')
+          PY
+      - name: Test
+        run: |
+          zsh scripts/test.sh
+          python3 -m unittest discover -s Tests/ReleaseTests -v
+      - name: Read and validate existing release state
+        env:
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          command -v aws
+          python3 scripts/release/publish.py prepare build/release-state
+      - name: Install signing and notarization credentials
+        env:
+          CODESIGN_P12_BASE64: ${{ secrets.CODESIGN_P12_BASE64 }}
+          CODESIGN_P12_PASSWORD: ${{ secrets.CODESIGN_P12_PASSWORD }}
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: zsh scripts/ci-keychain.sh
+      - name: Build, sign, notarize, and verify DMG
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          test -n "$SPARKLE_ED_PRIVATE_KEY"
+          zsh scripts/release.sh
+      - name: Keep verified release artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Explorer-${{ env.RELEASE_VERSION }}
+          path: build/releases/${{ env.RELEASE_VERSION }}/
+          if-no-files-found: error
+      - name: Upload to R2 and publish the feed last
+        env:
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: python3 scripts/release/publish.py publish "build/releases/$RELEASE_VERSION"
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "build/releases/$RELEASE_VERSION/MacExplorer-$RELEASE_VERSION.dmg" \
+            "build/releases/$RELEASE_VERSION/checksums.txt" \
+            --verify-tag --title "Explorer $RELEASE_VERSION" \
+            --notes-file "docs/releases/$RELEASE_VERSION.md"
+      - name: Remove temporary signing material
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/explorer-signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/explorer-signing.p12" "$RUNNER_TEMP/explorer-notary.p8"

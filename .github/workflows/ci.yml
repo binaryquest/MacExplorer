@@ -1,0 +1,23 @@
+name: Build and test
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Test Swift and release behavior
+        run: |
+          zsh scripts/test.sh
+          python3 -m unittest discover -s Tests/ReleaseTests -v
+      - name: Build universal development app
+        run: zsh scripts/build.sh --universal
+      - name: Validate shell scripts
+        run: |
+          for script in scripts/*.sh; do zsh -n "$script"; done

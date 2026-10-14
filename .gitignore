@@ -11,6 +11,11 @@ build/
 *.pfx
 *.pem
 *.key
+*.p8
+*.cer
+*.certSigningRequest
 *.mobileprovision
 *.provisionprofile
 .secrets/
+__pycache__/
+*.pyc

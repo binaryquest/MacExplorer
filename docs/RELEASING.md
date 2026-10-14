@@ -99,6 +99,8 @@ zsh scripts/release.sh
 
 The script builds both architectures, signs nested helpers and the app with Hardened Runtime and secure timestamps, notarizes and staples the app, creates a DMG with an Applications shortcut, signs/notarizes/staples the DMG, and verifies both Gatekeeper assessment and Sparkle signatures. Results go to `build/releases/<version>/`. This command **does not publish**.
 
+App and DMG ticket stapling and validation automatically retry transient Apple ticket-service connection failures. Each operation has at most five attempts, with waits of 10, 20, 40, and 80 seconds; each command has a two-minute timeout. Diagnostics and retry counts appear in the job log. Exit code 68 is retried only with a recognized transient `NSURLErrorDomain` diagnostic; a command timeout is also retried. Missing, invalid, or revoked tickets, TLS/authentication failures, and other errors stop the release immediately. Exhausted retries fail the job before publication. Only the failed stapler operation is retried, using the same signed artifact, without rebuilding or resubmitting notarization.
+
 For an existing feed, first run `python3 scripts/release/publish.py prepare build/release-state` with R2 credentials in the AWS CLI environment, and set `PREVIOUS_APPCAST` to `build/release-state/previous-appcast.xml`. CI always does this, preserving previous update entries. A separate credential Keychain can be selected with `NOTARY_KEYCHAIN`.
 
 Regular `zsh scripts/build.sh` builds an ad-hoc signed development app with updates disabled. `--universal` includes both architectures; `--release` enables updates and requires a Developer ID identity. The demo app also keeps updates disabled.

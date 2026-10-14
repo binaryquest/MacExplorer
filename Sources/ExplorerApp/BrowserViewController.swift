@@ -722,46 +722,48 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         } else { NSWorkspace.shared.open(item.url) }
     }
     func menuNeedsUpdate(_ menu: NSMenu) {
-        menu.removeAllItems()
         if viewMode.usesTable, file(atRow: table.clickedRow) != nil, !table.selectedRowIndexes.contains(table.clickedRow) {
             table.selectRowIndexes(IndexSet(integer: table.clickedRow), byExtendingSelection: false)
         } else if viewMode.usesTable, file(atRow: table.clickedRow) == nil { table.deselectAll(nil) }
-        if let item = selectedItems.first {
-            let open = NSMenuItem(title: "Open", action: #selector(contextOpen), keyEquivalent: ""); open.target = self; menu.addItem(open)
-            if item.isNavigable {
-                let new = NSMenuItem(title: "Open in New Tab", action: #selector(contextNewTab), keyEquivalent: ""); new.target = self; menu.addItem(new)
+        populateContextMenu(menu)
+    }
+    func populateContextMenu(_ menu: NSMenu) {
+        ContextMenu.configure(menu)
+        let items = selectedItems
+        ContextMenu.addFileActions(to: menu, enabled: canPerformFileAction) { [weak self] in self?.performFileAction($0) }
+        func add(_ title: String, _ symbol: String, _ action: @escaping () -> Void) {
+            menu.addItem(ContextMenu.item(title, symbol: symbol, action: action))
+        }
+        if let item = items.first {
+            add("Open", item.isNavigable ? "folder" : "doc") { [weak self] in self?.contextOpen() }
+            if items.count == 1, item.isNavigable {
+                add("Open in New Tab", "plus.square.on.square") { [weak self] in self?.contextNewTab() }
+                add("Open in New Window", "macwindow.badge.plus") { (NSApp.delegate as? AppDelegate)?.newWindow(urls: [item.url]) }
+                add("Open in Other Pane", "rectangle.split.2x1") { [weak self] in self?.openSelectedInOtherPane() }
+                menu.addItem(.separator())
+                add(FavoriteStore.shared.favorites.contains(item.url) ? "Unpin from Favorites" : "Pin to Favorites", "pin") { [weak self] in self?.pinSelectedFolder() }
             }
-            if item.isPackage {
-                let contents = NSMenuItem(title: "Show Package Contents", action: #selector(contextPackage), keyEquivalent: ""); contents.target = self; menu.addItem(contents)
-            }
-            if item.isNavigable {
-                let pin = NSMenuItem(title: FavoriteStore.shared.favorites.contains(item.url) ? "Unpin from Favorites" : "Pin to Favorites", action: #selector(pinSelectedFolder), keyEquivalent: "")
-                pin.target = self; menu.addItem(pin)
-                let other = NSMenuItem(title: "Open in Other Pane", action: #selector(openSelectedInOtherPane), keyEquivalent: "")
-                other.target = self; menu.addItem(other)
-            }
-            if tab.isRecursiveSearch {
-                let location = NSMenuItem(title: "Open Containing Folder", action: #selector(openContainingFolder), keyEquivalent: "")
-                location.target = self; menu.addItem(location)
-            }
-            let preview = NSMenuItem(title: "Quick Look", action: #selector(contextPreview), keyEquivalent: "")
-            preview.target = self; menu.addItem(preview)
-            if let window = view.window {
-                menu.addItem(FileColorMenu.shared.item(urls: selectedItems.map(\.url), summaries: selectedItems.map(\.finderColors), window: window))
-            }
+            if items.count == 1, item.isPackage { add("Show Package Contents", "shippingbox") { [weak self] in self?.contextPackage() } }
+            if tab.isRecursiveSearch { add("Open Containing Folder", "folder") { [weak self] in self?.openContainingFolder() } }
+            add("Quick Look", "eye") { [weak self] in self?.contextPreview() }
+            if let window = view.window { menu.addItem(FileColorMenu.shared.item(urls: items.map(\.url), summaries: items.map(\.finderColors), window: window)) }
+            add("Copy as Path", "link") { [weak self] in self?.contextCopy() }
             menu.addItem(.separator())
         }
-        for action in [FileAction.cut, .copy, .paste, .rename, .move, .trash, .newFolder, .undo] {
-            let item = NSMenuItem(title: action == .undo ? operations.undoTitle.map { "Undo \($0)" } ?? "Undo" : action.title,
-                                  action: #selector(contextFileAction(_:)), keyEquivalent: "")
-            item.target = self; item.representedObject = action.rawValue; item.isEnabled = canPerformFileAction(action); menu.addItem(item)
+        for action in [FileAction.move, .newFolder, .undo] {
+            let title = action == .undo ? operations.undoTitle.map { "Undo \($0)" } ?? "Undo" : action.title
+            menu.addItem(ContextMenu.item(title, symbol: action.menuSymbol, enabled: canPerformFileAction(action)) { [weak self] in self?.performFileAction(action) })
         }
-        menu.autoenablesItems = false
-        menu.addItem(.separator())
-        let copy = NSMenuItem(title: "Copy Path", action: #selector(contextCopy), keyEquivalent: ""); copy.target = self; menu.addItem(copy)
-    }
-    @objc private func contextFileAction(_ sender: NSMenuItem) {
-        if let raw = sender.representedObject as? String, let action = FileAction(rawValue: raw) { performFileAction(action) }
+        let terminalFolder = ExternalApplications.terminalDirectory(items: items, currentFolder: tab.history.current)
+        let canEdit = ExternalApplications.canEdit(items)
+        if terminalFolder != nil || canEdit {
+            menu.addItem(.separator())
+            if let folder = terminalFolder { menu.addItem(ExternalApplications.terminalItem(folder: folder, window: view.window, containing: items.first.map { !$0.isNavigable } ?? false)) }
+            if canEdit {
+                let urls = items.map(\.url)
+                add(ExternalApplications.editorTitle(for: urls), "square.and.pencil") { [weak self] in ExternalApplications.openEditor(files: urls, window: self?.view.window) }
+            }
+        }
     }
 
     var fileListHasFocus: Bool { view.window?.firstResponder === activeFileView }

@@ -1,6 +1,7 @@
 import AppKit
 import ExplorerCore
 import ServiceManagement
+import UniformTypeIdentifiers
 
 @MainActor
 private final class SettingsWindow: NSWindow {
@@ -72,6 +73,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let loginSettings = NSButton(title: "Open Login Items Settings…", target: nil, action: nil)
     private let hidden = NSButton(checkboxWithTitle: "Show hidden files and folders", target: nil, action: nil)
     private let startup = NSPopUpButton(), appearance = NSPopUpButton(), viewMode = NSPopUpButton(), scope = NSPopUpButton(), shortcutAction = NSPopUpButton()
+    private let terminalApplication = NSPopUpButton(), editorApplication = NSPopUpButton()
 
     init(preferences: AppPreferences = .shared, shortcutController: GlobalShortcutController, updates: AppUpdateController) {
         self.preferences = preferences; self.shortcutController = shortcutController
@@ -86,7 +88,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         let keyboard = SettingsPageController(); keyboard.view = keyboardView()
         keyboard.onDisappear = { [weak self] in self?.recorder.cancel() }
         let updatePage = NSViewController(); updatePage.view = updatesView()
-        for (controller, title, symbol) in [(general, "General", "gearshape"), (keyboard, "Shortcut", "keyboard"), (updatePage, "Updates", "arrow.triangle.2.circlepath")] {
+        let applications = NSViewController(); applications.view = applicationsView()
+        for (controller, title, symbol) in [(general, "General", "gearshape"), (applications, "Applications", "app.badge"), (keyboard, "Shortcut", "keyboard"), (updatePage, "Updates", "arrow.triangle.2.circlepath")] {
             let item = NSTabViewItem(viewController: controller); item.label = title
             item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title); tabs.addTabViewItem(item)
         }
@@ -178,6 +181,66 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             checkUpdates, lastUpdateCheck, updateStatus
         ])
     }
+    private func applicationsView() -> NSView {
+        terminalApplication.target = self; terminalApplication.action = #selector(applicationChanged(_:)); terminalApplication.tag = 0
+        editorApplication.target = self; editorApplication.action = #selector(applicationChanged(_:)); editorApplication.tag = 1
+        terminalApplication.setAccessibilityLabel("Preferred terminal application")
+        editorApplication.setAccessibilityLabel("Preferred text editor")
+        return page("Open with your favorite apps", subtitle: "Choose the apps used by Explorer’s right-click menu.", content: [
+            row("Terminal", control: terminalApplication),
+            note("Open a folder in Terminal, iTerm2, or another terminal that supports opening folders. Right-click empty space to use the current folder."),
+            row("Text editor", control: editorApplication),
+            note("Open text, code, JSON, YAML, and configuration files in your preferred editor. Unrecognized files offer Open as Text."),
+            note("These choices apply only to Explorer’s terminal and editor actions. Double-click and Open continue to use macOS file associations.")
+        ])
+    }
+    private func refreshApplications() {
+        for (role, popup) in [(ExternalApplicationRole.terminal, terminalApplication), (.editor, editorApplication)] {
+            popup.removeAllItems()
+            popup.addItem(withTitle: "\(role.defaultName) (default)")
+            let selected = ExternalApplications.choice(for: role, preferences: preferences)
+            var choices = role.installedCandidates.compactMap { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }
+            if let selected {
+                let url = selected.resolvedURL ?? URL(fileURLWithPath: selected.path)
+                if !choices.contains(url) { choices.append(url) }
+            }
+            var seen = Set<String>()
+            for url in choices where seen.insert(url.path).inserted {
+                let choice = ApplicationChoice(url: url)
+                let isSelected = selected.map { $0.resolvedURL == url || $0.path == url.path } ?? false
+                let missing = !ApplicationChoice.isApplication(url)
+                popup.addItem(withTitle: ExternalApplications.name(of: url) + (missing ? " (not found)" : ""))
+                popup.lastItem?.representedObject = isSelected ? (selected ?? choice) : choice
+                if isSelected { popup.select(popup.lastItem) }
+            }
+            popup.menu?.addItem(.separator())
+            popup.addItem(withTitle: "Choose Application…"); popup.lastItem?.tag = 999
+        }
+    }
+    @objc private func applicationChanged(_ sender: NSPopUpButton) {
+        let role: ExternalApplicationRole = sender.tag == 0 ? .terminal : .editor
+        guard sender.selectedItem?.tag == 999 else {
+            setApplication(sender.selectedItem?.representedObject as? ApplicationChoice, role: role); return
+        }
+        refreshApplications()
+        guard let window else { return }
+        let panel = NSOpenPanel(); panel.allowedContentTypes = [.applicationBundle]
+        panel.canChooseFiles = true; panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+        panel.prompt = "Choose"; panel.message = role == .terminal ? "Choose your terminal application." : "Choose your text editor."
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            guard ApplicationChoice.isApplication(url), Bundle(url: url)?.bundleIdentifier != Bundle.main.bundleIdentifier else {
+                DispatchQueue.main.async { ExternalApplications.showError("Choose a terminal or text editor application other than Explorer.", window: window) }
+                return
+            }
+            self?.setApplication(ApplicationChoice(url: url), role: role)
+        }
+    }
+    private func setApplication(_ choice: ApplicationChoice?, role: ExternalApplicationRole) {
+        if role == .terminal { preferences.terminalApplication = choice }
+        else { preferences.editorApplication = choice }
+    }
     @objc private func refreshUpdates() {
         automaticChecks.state = updates.automaticallyChecks ? .on : .off
         automaticChecks.isEnabled = updates.isAvailable
@@ -200,6 +263,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         if !recorder.isRecording { recorder.title = preferences.shortcut.title; updateShortcutStatus() }
         refreshLoginStatus()
         refreshUpdates()
+        refreshApplications()
     }
     private func refreshLoginStatus() {
         let state = SMAppService.mainApp.status

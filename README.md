@@ -28,6 +28,7 @@ Open the DMG and drag **Explorer** into **Applications**. The app is Developer I
 - **Choose a view:** details, content, and multiple icon sizes; sort and group independently; preview files with Quick Look.
 - **See your storage:** local and external drives, mounted network shares, and locally available cloud folders, including Google Drive.
 - **Make it yours:** Finder color tags, light/dark appearance, startup and browsing preferences, optional launch at login, and a configurable global shortcut (⌘E by default).
+- **Use your favorite apps:** open folders in Terminal or a preferred terminal, and text/code/configuration files in TextEdit or your chosen editor. The context menu groups common file actions into a compact icon row.
 
 ## A closer look
 
@@ -53,6 +54,10 @@ open build/Explorer.app
 The build script creates `build/Explorer.app`, generates its icon, embeds Sparkle, and applies a local ad-hoc signature. Automatic updates are disabled in source builds; use the signed download above for automatic updates.
 
 The app appears as **Explorer** in macOS. Open **Explorer → Settings…** to change the global shortcut, appearance, startup behavior, and browsing defaults. The global shortcut works while Explorer is running, including when its last window is closed; it can be changed or disabled if it conflicts with another app.
+
+In **Settings → Applications**, choose your terminal and text editor. The defaults are macOS Terminal and TextEdit; installed alternatives such as iTerm2, Warp, Visual Studio Code, Sublime Text, and Zed appear automatically. **Choose Application…** lets you select another app. A custom terminal must accept folder URLs through macOS’s standard Open mechanism.
+
+Right-click a folder, sidebar location, or drive to open a terminal there; right-click empty folder space to use the current folder. For a selected file, the terminal opens its containing folder. Text files—including JSON, YAML, scripts, and dotfiles—offer **Open with [editor]**; other regular files offer **Open as Text with [editor]**. These preferences do not change macOS file associations or normal double-click behavior.
 
 ## Handy shortcuts
 

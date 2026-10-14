@@ -248,19 +248,24 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
         return FileDrag.accept(info, to: url, window: view.window)
     }
     func menuNeedsUpdate(_ menu: NSMenu) {
-        menu.removeAllItems(); menu.autoenablesItems = false
+        ContextMenu.configure(menu)
         let row = outline.clickedRow >= 0 ? outline.clickedRow : outline.selectedRow
         guard let node = outline.item(atRow: row) as? FolderNode, let url = node.url else { return }
-        func add(_ title: String, _ action: Selector, value: Any, enabled: Bool = true) {
+        func add(_ title: String, _ action: Selector, value: Any, enabled: Bool = true, symbol: String = "folder") {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-            item.target = self; item.representedObject = value; item.isEnabled = enabled; menu.addItem(item)
+            item.target = self; item.representedObject = value; item.isEnabled = enabled
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title); menu.addItem(item)
         }
         add("Open in New Tab", #selector(openNodeInTab(_:)), value: url)
         add("Open in Other Pane", #selector(openNodeInOtherPane(_:)), value: url)
         guard url.isFileURL else { return }
+        menu.addItem(ContextMenu.item("Open in New Window", symbol: "macwindow.badge.plus") { (NSApp.delegate as? AppDelegate)?.newWindow(urls: [url]) })
         if let window = view.window { menu.addItem(FileColorMenu.shared.item(urls: [url], summaries: [node.finderColors], window: window)) }
         menu.addItem(.separator())
-        add(FavoriteStore.shared.favorites.contains(url) ? "Unpin from Favorites" : "Pin to Favorites", #selector(pinNode(_:)), value: url)
+        add(FavoriteStore.shared.favorites.contains(url) ? "Unpin from Favorites" : "Pin to Favorites", #selector(pinNode(_:)), value: url, symbol: "pin")
+        menu.addItem(ContextMenu.item("Copy as Path", symbol: "link") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(url.path, forType: .string) })
+        menu.addItem(.separator())
+        menu.addItem(ExternalApplications.terminalItem(folder: url, window: view.window))
         if let id = node.favoriteID, let index = FavoriteStore.shared.favorites.items.firstIndex(where: { $0.id == id }) {
             menu.addItem(.separator())
             add("Move Favorite Up", #selector(favoriteUp(_:)), value: id, enabled: index > 0)

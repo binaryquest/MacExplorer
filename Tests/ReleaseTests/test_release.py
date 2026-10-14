@@ -1,15 +1,17 @@
 import base64
 import hashlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import sys
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts/release'))
 from config import BASE_URL, PREFIX, validate_version, app_info
-from publish import publish, validate_artifacts, prepare
+from publish import publish, validate_artifacts, prepare, verify_download
 from storage import R2
 
 
@@ -59,6 +61,31 @@ class ReleaseTests(unittest.TestCase):
         def failed(url, digest): raise ValueError('Cloudflare returned a challenge')
         with self.assertRaises(ValueError): publish(self.store, self.directory, failed)
         self.assertFalse(any('/stable/' in key for key in self.store.calls))
+
+    def test_download_verifier_identifies_itself_and_checks_received_bytes(self):
+        payload = b'verified release download'
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                agent = self.headers.get('User-Agent', '')
+                if not agent or agent.startswith('Python-urllib/'):
+                    self.send_error(403)
+                    return
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(payload)
+            def log_message(self, *_): pass
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f'http://127.0.0.1:{server.server_port}/download'
+            verify_download(url, hashlib.sha256(payload).hexdigest())
+            with self.assertRaises(ValueError):
+                verify_download(url, hashlib.sha256(b'modified download').hexdigest())
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
 
     def test_changed_installer_is_rejected_before_upload(self):
         self.dmg.write_bytes(b'tampered installer')

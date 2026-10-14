@@ -1,0 +1,22 @@
+[
+  {
+    "action": "set_cache_settings",
+    "action_parameters": {
+      "cache": true,
+      "edge_ttl": {"mode": "respect_origin"},
+      "browser_ttl": {"mode": "respect_origin"}
+    },
+    "description": "Cache immutable Explorer release files",
+    "expression": "(http.host eq \"downloads.bquick.io\" and starts_with(http.request.uri.path, \"/explorer/releases/\"))",
+    "enabled": true,
+    "ref": "explorer_immutable_releases"
+  },
+  {
+    "action": "set_cache_settings",
+    "action_parameters": {"cache": false},
+    "description": "Keep Explorer update metadata fresh",
+    "expression": "(http.host eq \"downloads.bquick.io\" and starts_with(http.request.uri.path, \"/explorer/stable/\"))",
+    "enabled": true,
+    "ref": "explorer_stable_no_cache"
+  }
+]

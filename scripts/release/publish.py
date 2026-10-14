@@ -69,7 +69,10 @@ def validate_artifacts(directory):
 
 
 def verify_download(url, expected_digest):
-    with urllib.request.urlopen(url, timeout=120) as response:
+    request = urllib.request.Request(url, headers={
+        'User-Agent': 'MacExplorer-ReleaseVerifier/1.0 (+https://github.com/binaryquest/MacExplorer)',
+    })
+    with urllib.request.urlopen(request, timeout=120) as response:
         digest = hashlib.sha256()
         while chunk := response.read(1024 * 1024):
             digest.update(chunk)

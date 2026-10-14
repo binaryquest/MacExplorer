@@ -1,0 +1,10 @@
+[
+  {
+    "allowed": {
+      "origins": ["https://explorer.bquick.io"],
+      "methods": ["GET", "HEAD"]
+    },
+    "exposeHeaders": ["ETag", "Content-Length"],
+    "maxAgeSeconds": 3600
+  }
+]

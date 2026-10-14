@@ -2,7 +2,7 @@
 
 Explorer is distributed directly for macOS 14+, as a universal DMG for Apple Silicon and Intel. The app identity is `io.bquick.explorer`, signed by Binary Quest Software Pty Ltd, team `B5M99337GK`.
 
-The pipeline is implemented, but the first public release needs notarization credentials, R2 setup, and an end-to-end update check. Do not publish a version tag until these are ready.
+Local notarization and R2 hosting are configured. The first public release still needs the GitHub signing/notarization/Sparkle secrets and an end-to-end update check. Do not publish a version tag until these are ready.
 
 ## Hosting
 
@@ -17,6 +17,16 @@ In R2, create the bucket and connect the custom domain using **Settings → Cust
 Configure Cloudflare to **bypass cache for `/explorer/stable/*`**. Versioned files are uploaded with a one-year immutable cache policy; stable metadata uses `no-store`. Do not transform the signed XML or release notes. If the website reads `latest.json` from browser JavaScript, allow GET/HEAD from `https://explorer.bquick.io` in the bucket's CORS configuration.
 
 Create R2 S3 credentials with **Object Read & Write** scoped only to this bucket. Save its S3 endpoint from Cloudflare (including the jurisdiction suffix, if any). No account-wide Cloudflare API token is required for routine releases.
+
+### Current hosting configuration
+
+The production bucket uses Standard storage in APAC, the default jurisdiction, and the custom domain with TLS 1.2 or newer. The development `r2.dev` URL is disabled. The [CORS policy](../Support/Release/r2-cors.json) permits the mini-site to read release metadata. The [cache rules](../Support/Release/cache-rules.json) cache versioned files while respecting their origin TTL in both Cloudflare and browsers, and bypass cache for stable metadata. Merge these rules into any existing zone cache ruleset; do not replace unrelated rules.
+
+The account-owned token **MacExplorer releases** has object read/write access to this bucket only. Its S3 credentials are saved in the maintainer's login Keychain as a generic password with service `io.bquick.explorer.release.r2` and account `macexplorer-releases`. That entry contains a JSON object with `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `R2_ENDPOINT`; read it into a process environment without printing it or writing it into the repository.
+
+GitHub's `release` environment contains `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and the `R2_ENDPOINT` variable. The environment permits version tags matching `v*`; the workflow additionally verifies that the tagged commit belongs to `main`.
+
+Public GET/HEAD requests, CORS, uncached metadata, and cached versioned files are checked with harmless temporary objects. The verifier sends an explicit `MacExplorer-ReleaseVerifier` user agent because Cloudflare rejects Python's generic default user agent. Explorer's Sparkle user agent is accepted. A small [hosting check](https://downloads.bquick.io/explorer/health.json) is available independently of releases; the installer and update feed are not published yet.
 
 ## Signing and notarization
 

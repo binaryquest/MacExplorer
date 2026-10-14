@@ -244,7 +244,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         for (action, key, modifiers) in [(FileAction.newFolder, "n", NSEvent.ModifierFlags([.command, .shift])),
                                          (.rename, String(UnicodeScalar(NSF2FunctionKey)!), []),
                                          (.move, "m", [.command, .shift]),
-                                         (.trash, String(UnicodeScalar(NSDeleteCharacter)!), [.command])] {
+                                         (.trash, String(UnicodeScalar(NSDeleteCharacter)!), [.command]),
+                                         (.compress, "", []), (.extract, "", []),
+                                         (.properties, "i", [.command])] {
             let item = NSMenuItem(title: action.title, action: #selector(fileOperation), keyEquivalent: key)
             item.target = self; item.representedObject = action.rawValue; item.keyEquivalentModifierMask = modifiers; file.addItem(item)
         }

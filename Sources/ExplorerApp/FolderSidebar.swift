@@ -266,6 +266,12 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
         menu.addItem(ContextMenu.item("Copy as Path", symbol: "link") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(url.path, forType: .string) })
         menu.addItem(.separator())
         menu.addItem(ExternalApplications.terminalItem(folder: url, window: view.window))
+        menu.addItem(.separator())
+        menu.addItem(ContextMenu.item("Compress to ZIP", symbol: "doc.zipper", enabled: !FileOperationController.shared.busy) { [weak self] in
+            guard let window = self?.view.window else { return }
+            FileOperationController.shared.run(.compress([url], to: url.deletingLastPathComponent().appendingPathComponent(url.lastPathComponent + ".zip")), window: window)
+        })
+        menu.addItem(FileProperties.item(urls: [url], window: view.window))
         if let id = node.favoriteID, let index = FavoriteStore.shared.favorites.items.firstIndex(where: { $0.id == id }) {
             menu.addItem(.separator())
             add("Move Favorite Up", #selector(favoriteUp(_:)), value: id, enabled: index > 0)

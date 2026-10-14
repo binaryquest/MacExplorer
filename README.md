@@ -23,12 +23,12 @@ Open the DMG and drag **Explorer** into **Applications**. The app is Developer I
 ## What it can do
 
 - **Browse your way:** tabs, tab reordering and detaching into windows, breadcrumbs, a folder tree, pinned favorites, and dual panes.
-- **Manage files:** copy, cut, paste, move, rename, new folders, Trash, conflict handling, and undo. Drag files between folders, tabs, and panes.
+- **Manage files:** copy, cut, paste, move, rename, new folders, Trash, ZIP compression and extraction, conflict handling, and undo. Drag files between folders, tabs, and panes. Open native Get Info with **Properties**.
 - **Find things:** search filenames in a folder or its subfolders, highlight matches, and click a result's folder path to open it with the file selected.
 - **Choose a view:** details, content, and multiple icon sizes; sort and group independently; preview files with Quick Look.
 - **See your storage:** local and external drives, mounted network shares, and locally available cloud folders, including Google Drive.
 - **Make it yours:** Finder color tags, light/dark appearance, startup and browsing preferences, optional launch at login, and a configurable global shortcut (⌘E by default).
-- **Use your favorite apps:** open folders in Terminal or a preferred terminal, and text/code/configuration files in TextEdit or your chosen editor. The context menu groups common file actions into a compact icon row.
+- **Use your favorite apps:** choose a registered application from **Open With**, open folders in your preferred terminal, and text/code/configuration files in your chosen editor. The context menu groups common file actions into a compact icon row.
 
 ## A closer look
 
@@ -59,6 +59,12 @@ In **Settings → Applications**, choose your terminal and text editor. The defa
 
 Right-click a folder, sidebar location, or drive to open a terminal there; right-click empty folder space to use the current folder. For a selected file, the terminal opens its containing folder. Text files—including JSON, YAML, scripts, and dotfiles—offer **Open with [editor]**; other regular files offer **Open as Text with [editor]**. These preferences do not change macOS file associations or normal double-click behavior.
 
+**Open With** lists applications macOS registers for the selected files, with the shared default first. For multiple files, it lists apps that handle every selected file; **Other…** lets you choose an application manually. This opens the files once without changing their default app.
+
+**Compress to ZIP** creates `name.zip` for one item or `Archive.zip` for multiple items in the current folder. In recursive search, it uses the first selected item's containing folder and preserves relative paths so identically named files from different folders remain distinct. **Extract All…** lets you choose a parent folder, then unpacks into a folder named after the ZIP. Existing destinations offer Keep Both, Replace, Skip, or Cancel; Replace sends the old destination to Trash. Both operations support cancellation and Undo, which refuses to remove output edited since the operation. ZIPs contain standard file contents, folders, and symlinks; Finder tags, extended attributes, resource forks, and password-protected archives are not supported. Download quarantine is preserved on extracted contents.
+
+**Properties** (⌘I) opens Finder's native Get Info window for selected items, drives, sidebar folders, or the current folder. macOS may ask you to allow Explorer to control Finder the first time. If denied, you can enable it later in **System Settings → Privacy & Security → Automation**.
+
 ## Handy shortcuts
 
 | Action | Shortcut |
@@ -70,6 +76,7 @@ Right-click a folder, sidebar location, or drive to open a terminal there; right
 | Search / search subfolders | ⌘F / ⇧⌘F |
 | Toggle dual panes / switch pane | ⇧⌘D / F6 |
 | Quick Look | Space |
+| Properties / native Get Info | ⌘I |
 | Rename | F2 |
 | Copy / cut / paste / undo | ⌘C / ⌘X / ⌘V / ⌘Z |
 | New folder | ⇧⌘N |

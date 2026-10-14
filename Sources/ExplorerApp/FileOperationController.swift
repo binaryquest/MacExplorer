@@ -2,7 +2,7 @@ import AppKit
 import ExplorerCore
 
 enum FileAction: String, CaseIterable {
-    case cut, copy, paste, move, rename, newFolder, trash, undo, cancel
+    case cut, copy, paste, move, rename, newFolder, trash, compress, extract, properties, undo, cancel
     var title: String {
         switch self {
         case .cut: "Cut"
@@ -12,6 +12,9 @@ enum FileAction: String, CaseIterable {
         case .rename: "Rename…"
         case .newFolder: "New Folder…"
         case .trash: "Move to Trash"
+        case .compress: "Compress to ZIP"
+        case .extract: "Extract All…"
+        case .properties: "Properties"
         case .undo: "Undo"
         case .cancel: "Cancel Operation"
         }

@@ -736,6 +736,9 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         }
         if let item = items.first {
             add("Open", item.isNavigable ? "folder" : "doc") { [weak self] in self?.contextOpen() }
+            if items.allSatisfy({ !$0.isNavigable }) {
+                menu.addItem(OpenWithMenu.item(urls: items.map(\.url), window: view.window))
+            }
             if items.count == 1, item.isNavigable {
                 add("Open in New Tab", "plus.square.on.square") { [weak self] in self?.contextNewTab() }
                 add("Open in New Window", "macwindow.badge.plus") { (NSApp.delegate as? AppDelegate)?.newWindow(urls: [item.url]) }
@@ -748,6 +751,10 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
             add("Quick Look", "eye") { [weak self] in self?.contextPreview() }
             if let window = view.window { menu.addItem(FileColorMenu.shared.item(urls: items.map(\.url), summaries: items.map(\.finderColors), window: window)) }
             add("Copy as Path", "link") { [weak self] in self?.contextCopy() }
+            menu.addItem(.separator())
+            for action in [FileAction.compress] + (canExtractSelection ? [.extract] : []) {
+                menu.addItem(ContextMenu.item(action.title, symbol: action.menuSymbol, enabled: canPerformFileAction(action)) { [weak self] in self?.performFileAction(action) })
+            }
             menu.addItem(.separator())
         }
         for action in [FileAction.move, .newFolder, .undo] {
@@ -763,6 +770,13 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
                 let urls = items.map(\.url)
                 add(ExternalApplications.editorTitle(for: urls), "square.and.pencil") { [weak self] in ExternalApplications.openEditor(files: urls, window: self?.view.window) }
             }
+        }
+        if !items.isEmpty {
+            menu.addItem(.separator())
+            menu.addItem(FileProperties.item(urls: items.map(\.url), window: view.window))
+        } else if let folder = folderDestination {
+            menu.addItem(.separator())
+            menu.addItem(FileProperties.item(urls: [folder], window: view.window))
         }
     }
 
@@ -805,9 +819,13 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
     }
     func canPerformFileAction(_ action: FileAction) -> Bool {
         if action == .cancel { return operations.busy || !operations.cutPaths.isEmpty }
+        if action == .properties { return tab.isThisMac ? thisMacView.selectedLocation != nil : !selectedItems.isEmpty || folderDestination != nil }
         guard !operations.busy else { return false }
         switch action {
         case .copy, .cut, .move, .trash: return !selectedItems.isEmpty
+        case .compress: return !selectedItems.isEmpty
+        case .extract: return canExtractSelection
+        case .properties: return false
         case .rename: return selectedItems.count == 1
         case .newFolder: return folderDestination != nil
         case .paste: return folderDestination != nil && operations.canPaste
@@ -825,6 +843,25 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         case .undo: operations.undo(window: window)
         case .cancel: operations.cancel()
         case .trash: operations.run(.trash(urls), window: window)
+        case .compress:
+            let parent = folderDestination ?? urls[0].deletingLastPathComponent()
+            let name = urls.count == 1 ? urls[0].lastPathComponent + ".zip" : "Archive.zip"
+            operations.run(.compress(urls, to: parent.appendingPathComponent(name)), window: window)
+        case .extract:
+            guard let archive = urls.first else { return }
+            let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true
+            panel.allowsMultipleSelection = false; panel.canCreateDirectories = true
+            panel.title = "Extract All"; panel.prompt = "Extract"
+            panel.directoryURL = archive.deletingLastPathComponent()
+            let stem = archive.deletingPathExtension().lastPathComponent
+            let name = stem.isEmpty || stem == "." || stem == ".." ? "Archive" : stem
+            panel.message = "Choose where to create the “\(name)” folder for the extracted files."
+            panel.beginSheetModal(for: window) { [weak self] response in
+                if response == .OK, let parent = panel.url { self?.operations.run(.extract(archive, to: parent.appendingPathComponent(name)), window: window) }
+            }
+        case .properties:
+            let targets = tab.isThisMac ? [thisMacView.selectedLocation?.url].compactMap { $0 } : (!urls.isEmpty ? urls : [folder])
+            FileProperties.show(targets, window: window)
         case .rename:
             guard let item = selectedItems.first else { return }
             operations.askName(title: "Rename", initial: item.name, selectStem: !item.isDirectory, window: window) { [weak self] name in
@@ -845,6 +882,9 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
                 if response == .OK, let target = panel.url { self?.operations.run(.move(urls, to: target), window: window) }
             }
         }
+    }
+    var canExtractSelection: Bool {
+        selectedItems.count == 1 && selectedItems[0].url.pathExtension.lowercased() == "zip" && !selectedItems[0].isDirectory
     }
     @objc private func operationsChanged() {
         guard isViewLoaded else { return }

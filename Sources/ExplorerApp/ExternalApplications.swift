@@ -91,6 +91,9 @@ enum ExternalApplications {
             showError("\(name(for: role)) could not be found. Choose another application in Explorer Settings → Applications.", window: window)
             return
         }
+        open(urls, with: app, window: window)
+    }
+    static func open(_ urls: [URL], with app: URL, window: NSWindow?) {
         // Send document/folder URLs directly. Paths never become shell commands,
         // and scripts opened in the editor are documents, not executables.
         NSWorkspace.shared.open(urls, withApplicationAt: app, configuration: .init()) { _, error in

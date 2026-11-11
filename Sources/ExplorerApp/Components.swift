@@ -286,8 +286,13 @@ final class PathBar: Surface, NSTextFieldDelegate {
     private var url = FileManager.default.homeDirectoryForCurrentUser
     private var editing = false
     private var searchResults: String?
+    private let suggestions = PathSuggestionPopup()
+    private var suggestionGeneration = 0
+    /// What the user typed, kept while arrow keys preview suggestions in the field.
+    private var typedText = ""
     override init(frame: NSRect) {
         super.init(frame: frame)
+        suggestions.onChoose = { [weak self] text in self?.chooseSuggestion(text) }
         color = .controlBackgroundColor; wantsLayer = true; layer?.cornerRadius = 5
         layer?.borderWidth = 0.5; layer?.borderColor = Palette.line.cgColor
         crumbs.orientation = .horizontal; crumbs.spacing = 0
@@ -301,14 +306,21 @@ final class PathBar: Surface, NSTextFieldDelegate {
             crumbs.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 7), crumbs.trailingAnchor.constraint(lessThanOrEqualTo: edit.leadingAnchor), crumbs.centerYAnchor.constraint(equalTo: centerYAnchor),
             field.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12), field.trailingAnchor.constraint(equalTo: edit.leadingAnchor, constant: -4), field.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
-        let click = NSClickGestureRecognizer(target: self, action: #selector(editClicked)); click.numberOfClicksRequired = 2
-        addGestureRecognizer(click)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    @objc private func editClicked() { beginEditing() }
+    // Like Windows Explorer: a click on empty bar space (not on a crumb button) switches to the editable path.
+    override var mouseDownCanMoveWindow: Bool { false }
+    override func mouseDown(with event: NSEvent) {
+        if editing {
+            super.mouseDown(with: event)
+            return
+        }
+        beginEditing()
+    }
     func update(_ url: URL, searchResults: String? = nil) {
         self.searchResults = searchResults
         self.url = url; field.stringValue = BrowserLocation.isThisMac(url) ? "This Mac" : url.path
+        suggestionGeneration += 1; suggestions.hide()
         editing = false; field.isHidden = true; crumbs.isHidden = false
         crumbs.arrangedSubviews.forEach { crumbs.removeArrangedSubview($0); $0.removeFromSuperview() }
         if let searchResults {
@@ -344,21 +356,222 @@ final class PathBar: Surface, NSTextFieldDelegate {
     }
     func beginEditing() {
         editing = true; crumbs.isHidden = true; field.isHidden = false
-        field.stringValue = BrowserLocation.isThisMac(url) ? "This Mac" : url.path; window?.makeFirstResponder(field); field.selectText(nil)
+        field.stringValue = BrowserLocation.isThisMac(url) ? "This Mac" : url.path; typedText = field.stringValue
+        // selectText(_:) would end the session makeFirstResponder just started, and ending it reverts to breadcrumbs.
+        window?.makeFirstResponder(field); field.currentEditor()?.selectAll(nil)
     }
     @objc private func commit() {
+        suggestionGeneration += 1; suggestions.hide()
         let text = field.stringValue; window?.makeFirstResponder(nil)
         onCommit?(text)
     }
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-        if commandSelector == #selector(NSResponder.cancelOperation(_:)) { update(url, searchResults: searchResults); window?.makeFirstResponder(nil); return true }
-        return false
+        switch commandSelector {
+        case #selector(NSResponder.moveDown(_:)):
+            return moveSuggestionSelection(by: 1)
+        case #selector(NSResponder.moveUp(_:)):
+            return moveSuggestionSelection(by: -1)
+        case #selector(NSResponder.insertTab(_:)):
+            // Tab completes the highlighted (or first) folder, like Windows Explorer.
+            guard suggestions.isVisible, let completion = suggestions.highlightedOrFirst else {
+                return false
+            }
+            field.stringValue = completion; typedText = completion
+            textView.selectedRange = NSRange(location: (completion as NSString).length, length: 0)
+            refreshSuggestions()
+            return true
+        case #selector(NSResponder.cancelOperation(_:)):
+            // First Esc closes the list and restores what was typed; the next one leaves editing.
+            if suggestions.isVisible {
+                suggestionGeneration += 1
+                suggestions.hide(); field.stringValue = typedText
+                return true
+            }
+            update(url, searchResults: searchResults); window?.makeFirstResponder(nil)
+            return true
+        default:
+            return false
+        }
     }
     func controlTextDidEndEditing(_ obj: Notification) {
+        suggestions.hide()
         // Keep the typed path until the commit action has handled Return.
         if let movement = obj.userInfo?["NSTextMovement"] as? Int, movement == NSReturnTextMovement { return }
         if editing { update(url, searchResults: searchResults) }
     }
+    func controlTextDidChange(_ obj: Notification) {
+        typedText = field.stringValue
+        refreshSuggestions()
+    }
+    private func refreshSuggestions() {
+        let text = typedText
+        let base = url
+        suggestionGeneration += 1
+        let generation = suggestionGeneration
+        guard !text.isEmpty else {
+            suggestions.hide()
+            return
+        }
+        // Listing a slow network folder must not stall typing.
+        Task { [weak self] in
+            let items = await Task.detached(priority: .userInitiated) { FolderPath.suggestions(for: text, relativeTo: base) }.value
+            guard let self, self.editing, generation == self.suggestionGeneration else {
+                return
+            }
+            if items.isEmpty {
+                self.suggestions.hide()
+            } else {
+                self.suggestions.show(items, below: self)
+            }
+        }
+    }
+    private func moveSuggestionSelection(by delta: Int) -> Bool {
+        guard suggestions.isVisible else {
+            return false
+        }
+        if let text = suggestions.moveSelection(by: delta) {
+            field.stringValue = text
+        } else {
+            field.stringValue = typedText
+        }
+        field.currentEditor()?.selectedRange = NSRange(location: (field.stringValue as NSString).length, length: 0)
+        return true
+    }
+    private func chooseSuggestion(_ text: String) {
+        field.stringValue = text
+        commit()
+    }
+}
+
+/// Windows Explorer-style folder list shown below the address bar while typing a path.
+@MainActor
+final class PathSuggestionPopup: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+    var onChoose: ((String) -> Void)?
+    private var items: [String] = []
+    private let rowHeight: CGFloat = 24
+    private let maximumVisibleRows = 10
+    private lazy var table: SuggestionTableView = {
+        let table = SuggestionTableView()
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("path"))
+        table.addTableColumn(column); table.headerView = nil
+        table.rowHeight = rowHeight; table.intercellSpacing = NSSize(width: 0, height: 0)
+        table.style = .plain; table.backgroundColor = .clear; table.focusRingType = .none
+        table.dataSource = self; table.delegate = self
+        table.onClickRow = { [weak self] row in
+            guard let self, self.items.indices.contains(row) else {
+                return
+            }
+            self.onChoose?(self.items[row])
+        }
+        return table
+    }()
+    private lazy var panel: NSPanel = {
+        let panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        panel.isFloatingPanel = false; panel.hasShadow = true; panel.backgroundColor = .clear; panel.isOpaque = false
+        panel.becomesKeyOnlyIfNeeded = true; panel.hidesOnDeactivate = true
+        let effect = NSVisualEffectView()
+        effect.material = .menu; effect.state = .active; effect.wantsLayer = true
+        effect.layer?.cornerRadius = 6; effect.layer?.masksToBounds = true
+        let scroll = NSScrollView()
+        scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
+        scroll.autohidesScrollers = true; scroll.contentInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
+        scroll.automaticallyAdjustsContentInsets = false
+        effect.addSubview(scroll); scroll.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            scroll.leadingAnchor.constraint(equalTo: effect.leadingAnchor), scroll.trailingAnchor.constraint(equalTo: effect.trailingAnchor),
+            scroll.topAnchor.constraint(equalTo: effect.topAnchor), scroll.bottomAnchor.constraint(equalTo: effect.bottomAnchor)
+        ])
+        panel.contentView = effect
+        return panel
+    }()
+    var isVisible: Bool { panel.isVisible }
+    func show(_ items: [String], below anchor: NSView) {
+        guard let window = anchor.window else {
+            return
+        }
+        self.items = items
+        table.reloadData(); table.deselectAll(nil); table.scrollRowToVisible(0)
+        let anchorRect = window.convertToScreen(anchor.convert(anchor.bounds, to: nil))
+        let height = CGFloat(min(items.count, maximumVisibleRows)) * rowHeight + 8
+        panel.setFrame(NSRect(x: anchorRect.minX, y: anchorRect.minY - 2 - height, width: anchorRect.width, height: height), display: true)
+        if panel.parent !== window {
+            panel.parent?.removeChildWindow(panel)
+            window.addChildWindow(panel, ordered: .above)
+        }
+        panel.orderFront(nil)
+    }
+    func hide() {
+        guard panel.isVisible || panel.parent != nil else {
+            return
+        }
+        panel.parent?.removeChildWindow(panel)
+        panel.orderOut(nil)
+        items = []
+    }
+    /// Moves the highlighted row and returns its path, or nil when moving back above the first row.
+    func moveSelection(by delta: Int) -> String? {
+        let next = table.selectedRow + delta
+        if next < 0 {
+            table.deselectAll(nil)
+            return nil
+        }
+        let row = min(next, items.count - 1)
+        table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        table.scrollRowToVisible(row)
+        return items[row]
+    }
+    var highlightedOrFirst: String? {
+        items.indices.contains(table.selectedRow) ? items[table.selectedRow] : items.first
+    }
+    func numberOfRows(in tableView: NSTableView) -> Int { items.count }
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        let id = NSUserInterfaceItemIdentifier("suggestion")
+        let cell = tableView.makeView(withIdentifier: id, owner: nil) as? NSTableCellView ?? {
+            let cell = NSTableCellView(); cell.identifier = id
+            let icon = NSImageView(image: NSImage(named: NSImage.folderName) ?? NSImage())
+            let label = NSTextField(labelWithString: "")
+            label.font = .systemFont(ofSize: 12); label.lineBreakMode = .byTruncatingHead
+            for view in [icon, label] as [NSView] { cell.addSubview(view); view.translatesAutoresizingMaskIntoConstraints = false }
+            NSLayoutConstraint.activate([
+                icon.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 10), icon.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+                icon.widthAnchor.constraint(equalToConstant: 16), icon.heightAnchor.constraint(equalToConstant: 16),
+                label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 7), label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -10),
+                label.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+            ])
+            cell.imageView = icon; cell.textField = label
+            return cell
+        }()
+        cell.textField?.stringValue = items[row]
+        return cell
+    }
+}
+
+/// Acts on a click immediately; the popup never becomes key, so the path field keeps typing focus.
+@MainActor
+final class SuggestionTableView: NSTableView {
+    var onClickRow: ((Int) -> Void)?
+    private var hoverArea: NSTrackingArea?
+    override func mouseDown(with event: NSEvent) {
+        let row = row(at: convert(event.locationInWindow, from: nil))
+        if row >= 0 {
+            onClickRow?(row)
+        }
+    }
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverArea {
+            removeTrackingArea(hoverArea)
+        }
+        let area = NSTrackingArea(rect: bounds, options: [.mouseMoved, .activeAlways, .inVisibleRect], owner: self)
+        addTrackingArea(area); hoverArea = area
+    }
+    override func mouseMoved(with event: NSEvent) {
+        let row = row(at: convert(event.locationInWindow, from: nil))
+        if row >= 0 && row != selectedRow {
+            selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        }
+    }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 @MainActor

@@ -38,6 +38,20 @@ final class NavigationTests: XCTestCase {
         XCTAssertEqual(FolderPath.resolve("~", relativeTo: base)?.path, FileManager.default.homeDirectoryForCurrentUser.path)
         XCTAssertNil(FolderPath.resolve("  ", relativeTo: base))
     }
+    func testPathSuggestionsListMatchingFolders() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("explorer-suggest-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        for folder in ["Documents", "downloads", "Desktop", ".dotfolder", "Music", "Doc.app"] {
+            try FileManager.default.createDirectory(at: root.appendingPathComponent(folder), withIntermediateDirectories: true)
+        }
+        try Data().write(to: root.appendingPathComponent("Doc.txt"))
+        XCTAssertEqual(FolderPath.suggestions(for: root.path + "/d", relativeTo: root), ["Desktop", "Documents", "downloads"].map { root.path + "/" + $0 })
+        XCTAssertEqual(FolderPath.suggestions(for: "Do", relativeTo: root), ["Documents", "downloads"])
+        XCTAssertEqual(FolderPath.suggestions(for: "./.d", relativeTo: root), ["./.dotfolder"])
+        XCTAssertEqual(FolderPath.suggestions(for: root.path + "/", relativeTo: root).count, 4)
+        XCTAssertEqual(FolderPath.suggestions(for: root.path + "/missing/x", relativeTo: root), [])
+        XCTAssertEqual(FolderPath.suggestions(for: "", relativeTo: root), [])
+    }
 }
 
 final class FileSystemTests: XCTestCase {

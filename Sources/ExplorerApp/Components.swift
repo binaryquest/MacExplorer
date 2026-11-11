@@ -301,11 +301,17 @@ final class PathBar: Surface, NSTextFieldDelegate {
             crumbs.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 7), crumbs.trailingAnchor.constraint(lessThanOrEqualTo: edit.leadingAnchor), crumbs.centerYAnchor.constraint(equalTo: centerYAnchor),
             field.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12), field.trailingAnchor.constraint(equalTo: edit.leadingAnchor, constant: -4), field.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
-        let click = NSClickGestureRecognizer(target: self, action: #selector(editClicked)); click.numberOfClicksRequired = 2
-        addGestureRecognizer(click)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    @objc private func editClicked() { beginEditing() }
+    // Like Windows Explorer: a click on empty bar space (not on a crumb button) switches to the editable path.
+    override var mouseDownCanMoveWindow: Bool { false }
+    override func mouseDown(with event: NSEvent) {
+        if editing {
+            super.mouseDown(with: event)
+            return
+        }
+        beginEditing()
+    }
     func update(_ url: URL, searchResults: String? = nil) {
         self.searchResults = searchResults
         self.url = url; field.stringValue = BrowserLocation.isThisMac(url) ? "This Mac" : url.path
@@ -344,7 +350,9 @@ final class PathBar: Surface, NSTextFieldDelegate {
     }
     func beginEditing() {
         editing = true; crumbs.isHidden = true; field.isHidden = false
-        field.stringValue = BrowserLocation.isThisMac(url) ? "This Mac" : url.path; window?.makeFirstResponder(field); field.selectText(nil)
+        field.stringValue = BrowserLocation.isThisMac(url) ? "This Mac" : url.path
+        // selectText(_:) would end the session makeFirstResponder just started, and ending it reverts to breadcrumbs.
+        window?.makeFirstResponder(field); field.currentEditor()?.selectAll(nil)
     }
     @objc private func commit() {
         let text = field.stringValue; window?.makeFirstResponder(nil)

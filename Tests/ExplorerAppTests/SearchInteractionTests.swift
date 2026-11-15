@@ -89,7 +89,7 @@ struct SearchInteractionTests {
         let result = browser.tab.visible[row]
         #expect(cell.locationLabel.stringValue == result.url.deletingLastPathComponent().path)
         #expect(cell.modifiedLabel.stringValue.contains(browser.dateFormatter.string(from: try #require(result.modified))))
-        #expect(cell.sizeLabel.stringValue == "Size: Zero KB")
+        #expect(cell.sizeLabel.stringValue == L10n.text("Size: ") + L10n.byteCount(0))
         #expect(cell.nameLabel.attributedStringValue.attribute(.backgroundColor, at: 0, effectiveRange: nil) != nil)
         browser.table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
         #expect(browser.selectedItems.map(\.url) == [result.url])

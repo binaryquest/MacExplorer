@@ -29,6 +29,7 @@ APP_STAGE="$STAGING_ROOT/Explorer.app"
 mkdir -p "$APP_STAGE/Contents/MacOS" "$APP_STAGE/Contents/Resources" "$APP_STAGE/Contents/Frameworks"
 cp "$BIN_PATH/Explorer" "$APP_STAGE/Contents/MacOS/Explorer"
 cp Support/Info.plist "$APP_STAGE/Contents/Info.plist"
+ditto Sources/ExplorerCore/Resources/en.lproj "$APP_STAGE/Contents/Resources/en.lproj"
 ditto "$FRAMEWORK" "$APP_STAGE/Contents/Frameworks/Sparkle.framework"
 if [[ ! -f .build/AppIcon.icns || scripts/generate-icon.swift -nt .build/AppIcon.icns ]]; then
   swift -module-cache-path "$PROJECT_ROOT/.build/module-cache" scripts/generate-icon.swift "$PROJECT_ROOT/.build/AppIcon.iconset"
@@ -48,7 +49,11 @@ if (( UNIVERSAL_BUILD )); then
   ARCHS=" $(lipo -archs "$APP_STAGE/Contents/MacOS/Explorer") "
   [[ "$ARCHS" == *' arm64 '* && "$ARCHS" == *' x86_64 '* ]] || { print -u2 'Universal build is missing an architecture'; exit 1; }
 fi
+PACKS_PATH="${APP_PATH:h}/Localizations"
+ditto Localizations "$STAGING_ROOT/Localizations"
 mkdir -p "${APP_PATH:h}"
 if [[ -e "$APP_PATH" ]]; then mv "$APP_PATH" "$STAGING_ROOT/previous.app"; fi
+if [[ -e "$PACKS_PATH" ]]; then mv "$PACKS_PATH" "$STAGING_ROOT/previous-localizations"; fi
 mv "$APP_STAGE" "$APP_PATH"
+mv "$STAGING_ROOT/Localizations" "$PACKS_PATH"
 printf 'Built: %s\n' "$APP_PATH"

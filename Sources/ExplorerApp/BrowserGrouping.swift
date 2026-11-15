@@ -23,9 +23,10 @@ final class FileGroupHeader: NSView, NSCollectionViewElement {
     }
     func configure(title: String, count: Int, collapsed: Bool) {
         self.collapsed = collapsed
-        button.title = "  \(title) (\(count.formatted()))"
+        button.title = "  \(title) (\(count.formatted(.number.locale(L10n.locale))))"
         button.image = Palette.symbol(collapsed ? "chevron.right" : "chevron.down", size: 10)
-        button.setAccessibilityLabel("\(collapsed ? "Expand" : "Collapse") \(title) group, \(count) \(count == 1 ? "item" : "items")")
+        button.setAccessibilityLabel(L10n.text(collapsed ? "Expand %1$@ group, %2$@" : "Collapse %1$@ group, %2$@",
+                                               title, L10n.count("%lld items", count)))
     }
     @objc private func toggle() { onToggle?() }
 }
@@ -95,25 +96,25 @@ extension BrowserViewController {
     func tableView(_ tableView: NSTableView, typeSelectStringFor tableColumn: NSTableColumn?, row: Int) -> String? { file(atRow: row)?.name }
 
     func sortingMenu() -> NSMenu {
-        let menu = NSMenu(); menu.addItem(withTitle: "Sort", action: nil, keyEquivalent: "")
-        for (key, title) in [(FileSortKey.name, "Name"), (.modified, "Date modified"), (.kind, "Type"), (.size, "Size"), (.created, "Date created")] {
+        let menu = NSMenu(); menu.addItem(withTitle: L10n.text("Sort"), action: nil, keyEquivalent: "")
+        for (key, title) in [(FileSortKey.name, L10n.text("Name")), (.modified, L10n.text("Date modified")), (.kind, L10n.text("Type")), (.size, L10n.text("Size")), (.created, L10n.text("Date created"))] {
             let item = NSMenuItem(title: title, action: #selector(changeIconSort(_:)), keyEquivalent: "")
             item.target = self; item.representedObject = key.rawValue; menu.addItem(item)
         }
         menu.addItem(.separator())
-        for (title, ascending) in [("Ascending", true), ("Descending", false)] {
+        for (title, ascending) in [(L10n.text("Ascending"), true), (L10n.text("Descending"), false)] {
             let item = NSMenuItem(title: title, action: #selector(setSortDirection(_:)), keyEquivalent: "")
             item.target = self; item.representedObject = ascending; menu.addItem(item)
         }
         menu.addItem(.separator())
-        let group = NSMenuItem(title: "Group by", action: nil, keyEquivalent: ""), submenu = NSMenu()
+        let group = NSMenuItem(title: L10n.text("Group by"), action: nil, keyEquivalent: ""), submenu = NSMenu()
         for key in FileGroupKey.allCases.filter({ $0 != .none }) + [.none] {
             if key == .none { submenu.addItem(.separator()) }
-            let item = NSMenuItem(title: key == .none ? "(None)" : key.title, action: #selector(changeGrouping(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: key == .none ? L10n.text("(None)") : key.title, action: #selector(changeGrouping(_:)), keyEquivalent: "")
             item.target = self; item.representedObject = key.rawValue; submenu.addItem(item)
         }
         submenu.addItem(.separator())
-        for (title, ascending) in [("Groups ascending", true), ("Groups descending", false)] {
+        for (title, ascending) in [(L10n.text("Groups ascending"), true), (L10n.text("Groups descending"), false)] {
             let item = NSMenuItem(title: title, action: #selector(setGroupDirection(_:)), keyEquivalent: "")
             item.target = self; item.representedObject = ascending; submenu.addItem(item)
         }

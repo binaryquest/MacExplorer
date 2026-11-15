@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Category</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>few</key>
+			<string>few</string>
+			<key>many</key>
+			<string>many</string>
+			<key>one</key>
+			<string>one</string>
+			<key>other</key>
+			<string>other</string>
+			<key>two</key>
+			<string>two</string>
+			<key>zero</key>
+			<string>zero</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

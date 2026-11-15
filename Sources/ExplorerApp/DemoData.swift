@@ -22,7 +22,7 @@ enum DemoData {
         let gb: Int64 = 1_000_000_000
         func drive(_ name: String, _ kind: StorageLocation.Kind, total: Int64, free: Int64) -> StorageLocation {
             StorageLocation(url: root.appendingPathComponent("Devices/" + name), title: name,
-                            detail: kind == .internalDrive ? "Local disk" : kind == .network ? "Network drive" : "External volume",
+                            detail: kind == .internalDrive ? L10n.text("Local disk") : kind == .network ? L10n.text("Network drive") : L10n.text("External volume"),
                             kind: kind, capacity: StorageCapacity(total: total * gb, available: free * gb))
         }
         let google = root.appendingPathComponent("Cloud/Google Drive")
@@ -34,7 +34,7 @@ enum DemoData {
                     StorageLocation(url: google.appendingPathComponent("My Drive"), title: "My Drive", detail: "Google Drive · demo@example.test", kind: .googleDrive),
                     StorageLocation(url: google.appendingPathComponent("Shared drives"), title: "Shared drives", detail: "Google Drive · demo@example.test", kind: .googleDrive)
                 ]),
-                StorageLocation(url: root.appendingPathComponent("Cloud/OneDrive"), title: "OneDrive", detail: "Sample workspace", kind: .cloud)]
+                StorageLocation(url: root.appendingPathComponent("Cloud/OneDrive"), title: "OneDrive", detail: L10n.text("Sample workspace"), kind: .cloud)]
     }
     static func configure() {
         guard active else { return }

@@ -1,3 +1,4 @@
+import ExplorerCore
 import AppKit
 import Carbon
 
@@ -26,8 +27,8 @@ enum ShortcutError: LocalizedError {
     case registration(OSStatus), invalid
     var errorDescription: String? {
         switch self {
-        case .registration(let status): "This shortcut could not be registered (\(status)). It may already be in use. Choose another combination."
-        case .invalid: "Use Command, Control, or Option together with a letter or number."
+        case .registration(let status): L10n.text("This shortcut could not be registered (%1$@). It may already be in use. Choose another combination.", status)
+        case .invalid: L10n.text("Use Command, Control, or Option together with a letter or number.")
         }
     }
 }

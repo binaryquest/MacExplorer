@@ -15,6 +15,7 @@ public enum FinderColor: Int, CaseIterable, Sendable, Codable {
         case .orange: "Orange"
         }
     }
+    public var displayName: String { L10n.text(name) }
     public static let menuOrder: [Self] = [.red, .orange, .yellow, .green, .blue, .purple, .gray, .none]
 }
 
@@ -35,7 +36,7 @@ public enum FinderColors {
             get throws {
                 guard let tags else { return [] }
                 guard let entries = try PropertyListSerialization.propertyList(from: tags, format: nil) as? [String] else {
-                    throw FileOperationError("Finder tags could not be read. Existing tags were left untouched.")
+                    throw FileOperationError(L10n.text("Finder tags could not be read. Existing tags were left untouched."))
                 }
                 return entries
             }
@@ -52,13 +53,13 @@ public enum FinderColors {
                 if errno == ENOATTR || errno == ENOTSUP { return nil }
                 throw posixError(url)
             }
-            guard count <= 1_048_576 else { throw FileOperationError("Finder tags are too large to edit safely: \(url.lastPathComponent)") }
+            guard count <= 1_048_576 else { throw FileOperationError(L10n.text("Finder tags are too large to edit safely: %1$@", url.lastPathComponent)) }
             var data = Data(count: count)
             let read = data.withUnsafeMutableBytes { getxattr(url.path, attribute, $0.baseAddress, count, 0, XATTR_NOFOLLOW) }
             if read >= 0 { return data.prefix(read) }
             if errno != ERANGE { throw posixError(url) }
         }
-        throw FileOperationError("Finder tags changed while being read. Try again.")
+        throw FileOperationError(L10n.text("Finder tags changed while being read. Try again."))
     }
     static func split(_ entry: String) -> (name: String, color: FinderColor) {
         guard let newline = entry.lastIndex(of: "\n"), let number = Int(entry[entry.index(after: newline)...]),
@@ -87,12 +88,12 @@ public enum FinderColors {
         return State(tags: entries.isEmpty ? nil : try PropertyListSerialization.data(fromPropertyList: entries, format: .binary, options: 0), label: color.rawValue)
     }
     static func replace(_ url: URL, expected: State, with desired: State) throws {
-        guard try read(url) == expected else { throw FileOperationError("Finder tags changed on \(url.lastPathComponent). Refresh and try again.") }
+        guard try read(url) == expected else { throw FileOperationError(L10n.text("Finder tags changed on %1$@. Refresh and try again.", url.lastPathComponent)) }
         do { try write(desired, at: url) }
         catch {
             let failure = error
             do { try write(expected, at: url) }
-            catch { throw FileOperationError("\(failure.localizedDescription) Restoring the original tags also failed: \(error.localizedDescription)") }
+            catch { throw FileOperationError(L10n.text("%1$@ Restoring the original tags also failed: %2$@", failure.localizedDescription, error.localizedDescription)) }
             throw failure
         }
     }

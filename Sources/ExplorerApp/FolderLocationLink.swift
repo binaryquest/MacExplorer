@@ -1,3 +1,4 @@
+import ExplorerCore
 import AppKit
 
 @MainActor
@@ -18,12 +19,12 @@ final class FolderLocationLink: NSTextField {
         openFolder = onOpen; pressPoint = nil
         SearchHighlight.apply(text, to: self, query: query, color: onOpen == nil ? .secondaryLabelColor : .linkColor)
         normalValue = attributedStringValue
-        toolTip = "\(file.deletingLastPathComponent().path)\nOpen containing folder and select \(file.lastPathComponent)"
+        toolTip = L10n.text("%1$@\nOpen containing folder and select %2$@", file.deletingLastPathComponent().path, file.lastPathComponent)
         setAccessibilityElement(true)
         setAccessibilityRole(onOpen == nil ? .staticText : .link)
-        setAccessibilityLabel(onOpen == nil ? text : "Open containing folder for \(file.lastPathComponent)")
+        setAccessibilityLabel(onOpen == nil ? text : L10n.text("Open containing folder for %1$@", file.lastPathComponent))
         setAccessibilityValue(text)
-        setAccessibilityHelp(onOpen == nil ? nil : "Opens this folder in the current pane and selects \(file.lastPathComponent).")
+        setAccessibilityHelp(onOpen == nil ? nil : L10n.text("Opens this folder in the current pane and selects %1$@.", file.lastPathComponent))
         window?.invalidateCursorRects(for: self)
     }
     override func resetCursorRects() {

@@ -90,7 +90,7 @@ final class FileOperationTests: XCTestCase {
         try Data("edited externally".utf8).write(to: copy)
         let undo = await engine.undo(); XCTAssertNotNil(undo.error)
         XCTAssertEqual(try read(copy), "edited externally")
-        let title = await engine.undoTitle; XCTAssertEqual(title, "Copy")
+        let title = await engine.undoTitle; XCTAssertEqual(title, L10n.text("Copy"))
     }
     func testUndoRefusesOccupiedOriginalLocation() async throws {
         let root = try fixture(), engine = engine(root)

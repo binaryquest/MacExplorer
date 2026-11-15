@@ -5,6 +5,7 @@ import Quartz
 @main
 struct ExplorerMain {
     @MainActor static func main() {
+        _ = L10n.current
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
@@ -19,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var windows: [ExplorerWindowController] = []
     private var pendingURLs: [URL] = []
     private var ready = false
+    private var languageRestartRequested = false
     private let hotKeyRegistrar = CarbonHotKeyRegistrar()
     private lazy var globalShortcut = GlobalShortcutController(registrar: hotKeyRegistrar)
     private var settings: SettingsWindowController?
@@ -72,12 +74,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let restart = languageRestartRequested
+        languageRestartRequested = false
         if FileOperationController.shared.busy {
-            let alert = NSAlert(); alert.messageText = "A file operation is still running"
-            alert.informativeText = "Let it finish, or cancel it with Escape before quitting Explorer."
-            alert.addButton(withTitle: "Keep Explorer Open"); alert.runModal(); return .terminateCancel
+            let alert = NSAlert(); alert.messageText = L10n.text("A file operation is still running")
+            alert.informativeText = L10n.text("Let it finish, or cancel it with Escape before quitting Explorer.")
+            alert.addButton(withTitle: L10n.text("Keep Explorer Open")); alert.runModal(); return .terminateCancel
+        }
+        if restart {
+            do { try scheduleLanguageRestart() }
+            catch {
+                let alert = NSAlert()
+                alert.messageText = L10n.text("Couldn’t Restart Explorer")
+                alert.informativeText = error.localizedDescription
+                alert.addButton(withTitle: L10n.text("OK"))
+                alert.runModal()
+                return .terminateCancel
+            }
         }
         return .terminateNow
+    }
+    private func scheduleLanguageRestart() throws {
+        let launcher = Process()
+        launcher.executableURL = URL(fileURLWithPath: "/bin/sh")
+        // Wait for normal termination to finish saving the session and releasing the global shortcut.
+        launcher.arguments = ["-c", """
+            remaining=60
+            while kill -0 "$1" 2>/dev/null; do
+                [ "$remaining" -gt 0 ] || exit 1
+                remaining=$((remaining - 1))
+                /bin/sleep 1
+            done
+            exec /usr/bin/open -n "$2"
+            """, "explorer-relaunch", String(ProcessInfo.processInfo.processIdentifier), Bundle.main.bundleURL.path]
+        try launcher.run()
     }
     func applicationWillTerminate(_ notification: Notification) {
         current?.browser.saveSession(); hotKeyRegistrar.shutdown()
@@ -109,7 +139,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         NSApp.activate(ignoringOtherApps: true)
     }
     @objc func showSettings(_ sender: Any?) {
-        if settings == nil { settings = SettingsWindowController(shortcutController: globalShortcut, updates: updates) }
+        if settings == nil {
+            let controller = SettingsWindowController(shortcutController: globalShortcut, updates: updates)
+            if Bundle.main.bundleURL.pathExtension == "app" {
+                controller.onLanguageRestart = { [weak self] in
+                    self?.languageRestartRequested = true
+                    NSApp.terminate(nil)
+                }
+            }
+            settings = controller
+        }
         settings?.showWindow(nil); settings?.window?.makeKeyAndOrderFront(nil)
     }
     @objc func checkForUpdates(_ sender: Any?) { updates.checkForUpdates(sender) }
@@ -227,19 +266,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             menu.addItem(item)
         }
         let app = submenu("Explorer")
-        add(app, "About Explorer", #selector(showAbout))
-        add(app, "Settings…", #selector(showSettings), ",")
-        add(app, "Check for Updates…", #selector(checkForUpdates))
+        add(app, L10n.text("About Explorer"), #selector(showAbout))
+        add(app, L10n.text("Settings…"), #selector(showSettings), ",")
+        add(app, L10n.text("Check for Updates…"), #selector(checkForUpdates))
         app.addItem(.separator())
-        add(app, "Hide Explorer", #selector(NSApplication.hide(_:)), "h", target: NSApp)
-        add(app, "Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option], target: NSApp)
-        add(app, "Show All", #selector(NSApplication.unhideAllApplications(_:)), target: NSApp)
+        add(app, L10n.text("Hide Explorer"), #selector(NSApplication.hide(_:)), "h", target: NSApp)
+        add(app, L10n.text("Hide Others"), #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option], target: NSApp)
+        add(app, L10n.text("Show All"), #selector(NSApplication.unhideAllApplications(_:)), target: NSApp)
         app.addItem(.separator())
-        add(app, "Quit Explorer", #selector(NSApplication.terminate(_:)), "q", target: NSApp)
-        let file = submenu("File")
-        add(file, "New Window", #selector(newWindowAction), "n")
-        add(file, "New Tab", #selector(newTab), "t")
-        add(file, "Open Folder…", #selector(openFolder), "o")
+        add(app, L10n.text("Quit Explorer"), #selector(NSApplication.terminate(_:)), "q", target: NSApp)
+        let file = submenu(L10n.text("File"))
+        add(file, L10n.text("New Window"), #selector(newWindowAction), "n")
+        add(file, L10n.text("New Tab"), #selector(newTab), "t")
+        add(file, L10n.text("Open Folder…"), #selector(openFolder), "o")
         file.addItem(.separator())
         for (action, key, modifiers) in [(FileAction.newFolder, "n", NSEvent.ModifierFlags([.command, .shift])),
                                          (.rename, String(UnicodeScalar(NSF2FunctionKey)!), []),
@@ -251,55 +290,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             item.target = self; item.representedObject = action.rawValue; item.keyEquivalentModifierMask = modifiers; file.addItem(item)
         }
         file.addItem(.separator())
-        add(file, "Copy to Other Pane", #selector(copyOther), "c", [.control, .shift])
-        add(file, "Move to Other Pane", #selector(moveOther), "m", [.control, .shift])
+        add(file, L10n.text("Copy to Other Pane"), #selector(copyOther), "c", [.control, .shift])
+        add(file, L10n.text("Move to Other Pane"), #selector(moveOther), "m", [.control, .shift])
         file.addItem(.separator())
-        add(file, "Close Tab", #selector(closeTab), "w")
+        add(file, L10n.text("Close Tab"), #selector(closeTab), "w")
         if DemoData.active {
             file.addItem(.separator())
-            add(file, "Export Demo Screenshot", #selector(exportDemoScreenshot), "s", [.command, .shift])
+            add(file, L10n.text("Export Demo Screenshot"), #selector(exportDemoScreenshot), "s", [.command, .shift])
         }
-        let edit = submenu("Edit")
-        for (title, selector, key) in [("Undo", "undo:", "z"), ("Cut", "cut:", "x"), ("Copy", "copy:", "c"), ("Paste", "paste:", "v"), ("Select All", "selectAll:", "a")] {
+        let edit = submenu(L10n.text("Edit"))
+        for (title, selector, key) in [(L10n.text("Undo"), "undo:", "z"), (L10n.text("Cut"), "cut:", "x"), (L10n.text("Copy"), "copy:", "c"), (L10n.text("Paste"), "paste:", "v"), (L10n.text("Select All"), "selectAll:", "a")] {
             let item = NSMenuItem(title: title, action: Selector(selector), keyEquivalent: key)
             edit.addItem(item)
         }
         edit.addItem(.separator())
-        add(edit, "Copy Path", #selector(copyPath), "c", [.command, .shift])
-        let view = submenu("View")
+        add(edit, L10n.text("Copy Path"), #selector(copyPath), "c", [.command, .shift])
+        let view = submenu(L10n.text("View"))
         for mode in FileViewMode.allCases {
             let item = NSMenuItem(title: mode.title, action: #selector(viewMode), keyEquivalent: "")
             item.target = self; item.representedObject = mode.rawValue; view.addItem(item)
         }
         view.addItem(.separator())
-        add(view, "Quick Look", #selector(preview))
+        add(view, L10n.text("Quick Look"), #selector(preview))
         view.addItem(.separator())
-        add(view, "Refresh", #selector(refresh), "r")
-        add(view, "Show Hidden Files", #selector(hidden), ".", [.command, .shift])
-        add(view, "Search", #selector(filter), "f")
-        add(view, "Search Subfolders", #selector(recursiveSearch), "f", [.command, .shift])
+        add(view, L10n.text("Refresh"), #selector(refresh), "r")
+        add(view, L10n.text("Show Hidden Files"), #selector(hidden), ".", [.command, .shift])
+        add(view, L10n.text("Search"), #selector(filter), "f")
+        add(view, L10n.text("Search Subfolders"), #selector(recursiveSearch), "f", [.command, .shift])
         view.addItem(.separator())
-        add(view, "Dual Pane", #selector(toggleDual), "d", [.command, .shift])
-        add(view, "Focus Other Pane", #selector(otherPane), String(UnicodeScalar(NSF6FunctionKey)!), [])
-        add(view, "Pin Current Folder", #selector(pinFolder), "d")
+        add(view, L10n.text("Dual Pane"), #selector(toggleDual), "d", [.command, .shift])
+        add(view, L10n.text("Focus Other Pane"), #selector(otherPane), String(UnicodeScalar(NSF6FunctionKey)!), [])
+        add(view, L10n.text("Pin Current Folder"), #selector(pinFolder), "d")
         view.addItem(.separator())
-        let fullScreen = NSMenuItem(title: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
+        let fullScreen = NSMenuItem(title: L10n.text("Enter Full Screen"), action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
         fullScreen.keyEquivalentModifierMask = [.command, .control]
         view.addItem(fullScreen)
-        let go = submenu("Go")
-        add(go, "Back", #selector(back), "[")
-        add(go, "Forward", #selector(forward), "]")
-        add(go, "Parent Folder", #selector(up), String(UnicodeScalar(NSUpArrowFunctionKey)!), [.command])
-        add(go, "Home", #selector(home), "h", [.command, .shift])
-        add(go, "This Mac", #selector(thisMac), "e", [.command, .shift])
+        let go = submenu(L10n.text("Go"))
+        add(go, L10n.text("Back"), #selector(back), "[")
+        add(go, L10n.text("Forward"), #selector(forward), "]")
+        add(go, L10n.text("Parent Folder"), #selector(up), String(UnicodeScalar(NSUpArrowFunctionKey)!), [.command])
+        add(go, L10n.text("Home"), #selector(home), "h", [.command, .shift])
+        add(go, L10n.text("This Mac"), #selector(thisMac), "e", [.command, .shift])
         go.addItem(.separator())
-        add(go, "Open Containing Folder", #selector(containingFolder), "r", [.command, .shift])
-        add(go, "Go to Path…", #selector(editPath), "l")
-        let window = submenu("Window")
-        add(window, "Next Tab", #selector(nextTab), "}", [.command, .shift])
-        add(window, "Previous Tab", #selector(previousTab), "{", [.command, .shift])
+        add(go, L10n.text("Open Containing Folder"), #selector(containingFolder), "r", [.command, .shift])
+        add(go, L10n.text("Go to Path…"), #selector(editPath), "l")
+        let window = submenu(L10n.text("Window"))
+        add(window, L10n.text("Next Tab"), #selector(nextTab), "}", [.command, .shift])
+        add(window, L10n.text("Previous Tab"), #selector(previousTab), "{", [.command, .shift])
         window.addItem(.separator())
-        let minimize = NSMenuItem(title: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        let minimize = NSMenuItem(title: L10n.text("Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         window.addItem(minimize)
         NSApp.windowsMenu = window
         NSApp.mainMenu = main

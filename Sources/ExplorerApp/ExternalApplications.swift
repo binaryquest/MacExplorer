@@ -75,7 +75,7 @@ enum ExternalApplications {
         !items.isEmpty && items.allSatisfy { !$0.isDirectory && !$0.isPackage && $0.url.isFileURL }
     }
     static func editorTitle(for urls: [URL]) -> String {
-        "Open \(urls.allSatisfy(TextFileTypes.recognizes) ? "with" : "as Text with") \(name(for: .editor))"
+        L10n.text(urls.allSatisfy(TextFileTypes.recognizes) ? "Open with %1$@" : "Open as Text with %1$@", name(for: .editor))
     }
     static func openTerminal(at folder: URL, window: NSWindow?) {
         do { try FileSystem.validateDirectory(folder) }
@@ -88,7 +88,7 @@ enum ExternalApplications {
     }
     private static func open(_ urls: [URL], role: ExternalApplicationRole, window: NSWindow?) {
         guard let app = url(for: role) else {
-            showError("\(name(for: role)) could not be found. Choose another application in Explorer Settings → Applications.", window: window)
+            showError(L10n.text("%1$@ could not be found. Choose another application in Explorer Settings → Applications.", name(for: role)), window: window)
             return
         }
         open(urls, with: app, window: window)
@@ -101,12 +101,13 @@ enum ExternalApplications {
         }
     }
     static func showError(_ message: String, window: NSWindow?) {
-        let alert = NSAlert(); alert.messageText = "Couldn’t Open Application"; alert.informativeText = message
+        let alert = NSAlert(); alert.messageText = L10n.text("Couldn’t Open Application"); alert.informativeText = message
+        alert.addButton(withTitle: L10n.text("OK"))
         if let window, window.attachedSheet == nil { alert.beginSheetModal(for: window) }
         else { alert.runModal() }
     }
     static func terminalItem(folder: URL, window: NSWindow?, containing: Bool = false) -> NSMenuItem {
-        ContextMenu.item("Open \(containing ? "Containing Folder " : "")in \(name(for: .terminal))", symbol: "terminal") { [weak window] in
+        ContextMenu.item(L10n.text(containing ? "Open Containing Folder in %1$@" : "Open in %1$@", name(for: .terminal)), symbol: "terminal") { [weak window] in
             openTerminal(at: folder, window: window)
         }
     }

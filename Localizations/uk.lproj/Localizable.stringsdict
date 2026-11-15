@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>%lld items</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>few</key>
+			<string>%lld елементи</string>
+			<key>many</key>
+			<string>%lld елементів</string>
+			<key>one</key>
+			<string>%lld елемент</string>
+			<key>other</key>
+			<string>%lld елементів</string>
+		</dict>
+	</dict>
+	<key>%lld locations</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>few</key>
+			<string>%lld розташування</string>
+			<key>many</key>
+			<string>%lld розташувань</string>
+			<key>one</key>
+			<string>%lld розташування</string>
+			<key>other</key>
+			<string>%lld розташувань</string>
+		</dict>
+	</dict>
+	<key>%lld paths copied</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>few</key>
+			<string>Скопійовано %lld шляхи</string>
+			<key>many</key>
+			<string>Скопійовано %lld шляхів</string>
+			<key>one</key>
+			<string>Скопійовано %lld шлях</string>
+			<key>other</key>
+			<string>Скопійовано %lld шляхів</string>
+		</dict>
+	</dict>
+	<key>%lld results</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>few</key>
+			<string>%lld результати</string>
+			<key>many</key>
+			<string>%lld результатів</string>
+			<key>one</key>
+			<string>%lld результат</string>
+			<key>other</key>
+			<string>%lld результатів</string>
+		</dict>
+	</dict>
+	<key>Choose the destination for %lld selected items.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>few</key>
+			<string>Виберіть цільову папку для %lld вибраних елементів.</string>
+			<key>many</key>
+			<string>Виберіть цільову папку для %lld вибраних елементів.</string>
+			<key>one</key>
+			<string>Виберіть цільову папку для %lld вибраного елемента.</string>
+			<key>other</key>
+			<string>Виберіть цільову папку для %lld вибраних елементів.</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

@@ -40,7 +40,7 @@ enum FileColors {
         }
     }
     static func description(_ info: FinderColorSummary) -> String {
-        let names = info.names.isEmpty ? info.colors.map(\.name) : info.names
+        let names = info.names.isEmpty ? info.colors.map(\.displayName) : info.names
         return names.isEmpty ? "" : "Tags: " + names.joined(separator: ", ")
     }
 }
@@ -55,10 +55,10 @@ final class FileColorMenu: NSObject {
         init(_ urls: [URL], _ color: FinderColor, _ window: NSWindow) { self.urls = urls; self.color = color; self.window = window }
     }
     func item(urls: [URL], summaries: [FinderColorSummary], window: NSWindow) -> NSMenuItem {
-        let parent = NSMenuItem(title: "Color Label", action: nil, keyEquivalent: "")
+        let parent = NSMenuItem(title: L10n.text("Color Label"), action: nil, keyEquivalent: "")
         let menu = NSMenu(); menu.autoenablesItems = false
         for value in FinderColor.menuOrder {
-            let item = NSMenuItem(title: value == .none ? "Remove Color Label" : value.name, action: #selector(choose(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: value == .none ? L10n.text("Remove Color Label") : value.displayName, action: #selector(choose(_:)), keyEquivalent: "")
             item.target = self; item.representedObject = Choice(urls, value, window)
             item.isEnabled = !FileOperationController.shared.busy && window.attachedSheet == nil && !urls.isEmpty
             if value != .none {
@@ -68,7 +68,7 @@ final class FileColorMenu: NSObject {
                 let count = summaries.filter { $0.colors.contains(value) }.count
                 item.state = count == 0 ? .off : count == urls.count ? .on : .mixed
             }
-            item.toolTip = "Shared with Finder. Custom named tags are preserved."
+            item.toolTip = L10n.text("Shared with Finder. Custom named tags are preserved.")
             if value == .none { menu.addItem(.separator()) }
             menu.addItem(item)
         }

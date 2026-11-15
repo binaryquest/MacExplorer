@@ -36,6 +36,52 @@ struct PreferencesTests {
         #expect(reloaded.showHidden)
     }
 
+    @Test func interfaceLanguagePersistsAndInvalidValuesUseAutomatic() throws {
+        let name = "Explorer.PreferencesTests.\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let preferences = AppPreferences(defaults: defaults)
+        #expect(preferences.interfaceLanguage == nil)
+        preferences.interfaceLanguage = .english
+        #expect(AppPreferences(defaults: defaults).interfaceLanguage == .english)
+        #expect(defaults.string(forKey: InterfaceLanguage.preferenceKey) == "en")
+        preferences.interfaceLanguage = nil
+        #expect(defaults.string(forKey: InterfaceLanguage.preferenceKey) == nil)
+        defaults.set("invalid", forKey: InterfaceLanguage.preferenceKey)
+        #expect(preferences.interfaceLanguage == nil)
+    }
+
+    @Test func languageMenuListsAvailableLanguagesAndCanRestoreAutomatic() throws {
+        _ = NSApplication.shared
+        let name = "Explorer.PreferencesTests.\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let preferences = AppPreferences(defaults: defaults)
+        let controller = SettingsWindowController(preferences: preferences,
+                                                  shortcutController: GlobalShortcutController(registrar: FakeRegistrar()),
+                                                  updates: AppUpdateController())
+        let tabs = try #require(controller.window?.contentViewController as? NSTabViewController)
+        let general = try #require(tabs.tabViewItems.first?.viewController?.view)
+        let stack = try #require(general.subviews.first as? NSStackView)
+        let controls = stack.arrangedSubviews.compactMap { $0 as? NSStackView }.flatMap(\.arrangedSubviews)
+        let install = try #require(controls.compactMap { $0 as? NSButton }
+            .first { $0.title == L10n.text("Install Language Packs…") })
+        #expect(install.isEnabled && install.action != nil)
+        let popups = controls.compactMap { $0 as? NSPopUpButton }
+        let popup = try #require(popups.first { $0.accessibilityLabel() == L10n.text("Interface language") })
+        #expect(popup.itemTitles == [L10n.text("Automatic (macOS)")] + InterfaceLanguage.available.map(\.title))
+        #expect(popup.indexOfSelectedItem == 0)
+
+        let index = try #require(InterfaceLanguage.available.firstIndex(of: .english))
+        let action = try #require(popup.action)
+        popup.selectItem(at: index + 1)
+        #expect(NSApp.sendAction(action, to: popup.target, from: popup))
+        #expect(preferences.interfaceLanguage == .english)
+        popup.selectItem(at: 0)
+        #expect(NSApp.sendAction(action, to: popup.target, from: popup))
+        #expect(preferences.interfaceLanguage == nil)
+    }
+
     @Test func corruptedOrUnsafeBindingsFallBackToCommandE() throws {
         let name = "Explorer.PreferencesTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: name))

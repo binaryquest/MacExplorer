@@ -185,7 +185,7 @@ final class BrowserTabView: FolderDropSurface {
         icon.contentTintColor = .systemYellow
         tabLabel.lineBreakMode = .byTruncatingMiddle
         tabLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        closeButton = ActionButton(symbol: "xmark", tooltip: "Close \(title) tab", action: close)
+        closeButton = ActionButton(symbol: "xmark", tooltip: L10n.text("Close %1$@ tab", title), action: close)
         for child in [icon, tabLabel, closeButton!] { addSubview(child); child.translatesAutoresizingMaskIntoConstraints = false }
         NSLayoutConstraint.activate([
             icon.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 13), icon.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -205,10 +205,10 @@ final class BrowserTabView: FolderDropSurface {
     }
     func update(title: String, active: Bool) {
         self.active = active; tabLabel.stringValue = title; toolTip = title
-        closeButton.toolTip = "Close \(title) tab"; closeButton.setAccessibilityLabel("Close \(title) tab")
+        closeButton.toolTip = L10n.text("Close %1$@ tab", title); closeButton.setAccessibilityLabel(L10n.text("Close %1$@ tab", title))
         tabLabel.font = .systemFont(ofSize: 12, weight: active ? .semibold : .regular)
         tabLabel.textColor = active ? .labelColor : .secondaryLabelColor
-        setAccessibilityLabel("\(title) tab\(active ? ", selected" : "")"); needsDisplay = true
+        setAccessibilityLabel(L10n.text(active ? "%1$@ tab, selected" : "%1$@ tab", title)); needsDisplay = true
     }
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
@@ -254,9 +254,9 @@ final class BrowserTabView: FolderDropSurface {
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let browser, let index = browser.tabs.firstIndex(where: { $0.id == id }) else { return nil }
         let menu = NSMenu(); menu.autoenablesItems = false
-        for (title, action, enabled) in [("Move Tab Left", #selector(moveTabLeft), index > 0),
-                                        ("Move Tab Right", #selector(moveTabRight), index < browser.tabs.count - 1),
-                                        ("Move Tab to New Window", #selector(detach), true)] {
+        for (title, action, enabled) in [(L10n.text("Move Tab Left"), #selector(moveTabLeft), index > 0),
+                                        (L10n.text("Move Tab Right"), #selector(moveTabRight), index < browser.tabs.count - 1),
+                                        (L10n.text("Move Tab to New Window"), #selector(detach), true)] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self
             item.isEnabled = enabled && browser.canTransferTabs; menu.addItem(item)
         }
@@ -293,8 +293,8 @@ final class PathBar: Surface, NSTextFieldDelegate {
         crumbs.orientation = .horizontal; crumbs.spacing = 0
         field.isBordered = false; field.drawsBackground = false; field.font = .systemFont(ofSize: 12)
         field.delegate = self; field.target = self; field.action = #selector(commit)
-        field.setAccessibilityLabel("Folder path"); field.isHidden = true
-        let edit = ActionButton(symbol: "pencil", tooltip: "Edit folder path (⌘L)") { [weak self] in self?.beginEditing() }
+        field.setAccessibilityLabel(L10n.text("Folder path")); field.isHidden = true
+        let edit = ActionButton(symbol: "pencil", tooltip: L10n.text("Edit folder path (⌘L)")) { [weak self] in self?.beginEditing() }
         for view in [crumbs, field, edit] { addSubview(view); view.translatesAutoresizingMaskIntoConstraints = false }
         NSLayoutConstraint.activate([
             edit.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -2), edit.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -308,21 +308,21 @@ final class PathBar: Surface, NSTextFieldDelegate {
     @objc private func editClicked() { beginEditing() }
     func update(_ url: URL, searchResults: String? = nil) {
         self.searchResults = searchResults
-        self.url = url; field.stringValue = BrowserLocation.isThisMac(url) ? "This Mac" : url.path
+        self.url = url; field.stringValue = BrowserLocation.isThisMac(url) ? L10n.text("This Mac") : url.path
         editing = false; field.isHidden = true; crumbs.isHidden = false
         crumbs.arrangedSubviews.forEach { crumbs.removeArrangedSubview($0); $0.removeFromSuperview() }
         if let searchResults {
             let icon = NSImageView(image: Palette.symbol("magnifyingglass") ?? NSImage())
             icon.contentTintColor = .secondaryLabelColor
-            let label = NSTextField(labelWithString: "Search Results in \(searchResults)")
+            let label = NSTextField(labelWithString: L10n.text("Search Results in %1$@", searchResults))
             label.font = .systemFont(ofSize: 12); label.lineBreakMode = .byTruncatingMiddle
             label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             crumbs.spacing = 9; crumbs.addArrangedSubview(icon); crumbs.addArrangedSubview(label)
-            toolTip = "Search Results in \(url.path)"; return
+            toolTip = L10n.text("Search Results in %1$@", url.path); return
         }
         crumbs.spacing = 0; toolTip = url.path
         if BrowserLocation.isThisMac(url) {
-            crumbs.addArrangedSubview(ActionButton("This Mac", symbol: "desktopcomputer", tooltip: "Devices, drives and network locations") { [weak self] in self?.onNavigate?(BrowserLocation.thisMac) })
+            crumbs.addArrangedSubview(ActionButton(L10n.text("This Mac"), symbol: "desktopcomputer", tooltip: L10n.text("Devices, drives and network locations")) { [weak self] in self?.onNavigate?(BrowserLocation.thisMac) })
             return
         }
         var chain: [URL] = []; var current = url.standardizedFileURL
@@ -330,13 +330,13 @@ final class PathBar: Surface, NSTextFieldDelegate {
         let root = ActionButton(symbol: "internaldrive", tooltip: "/") { [weak self] in self?.onNavigate?(URL(fileURLWithPath: "/")) }
         crumbs.addArrangedSubview(root)
         if chain.count > 2 {
-            let ellipsis = ActionButton("…", tooltip: "Edit full path") { [weak self] in self?.beginEditing() }
+            let ellipsis = ActionButton("…", tooltip: L10n.text("Edit full path")) { [weak self] in self?.beginEditing() }
             crumbs.addArrangedSubview(ellipsis); chain = Array(chain.suffix(2))
         }
         for component in chain {
             let chevron = NSImageView(image: Palette.symbol("chevron.right", size: 9) ?? NSImage())
             chevron.contentTintColor = .tertiaryLabelColor; crumbs.addArrangedSubview(chevron)
-            let name = component.path == FileManager.default.homeDirectoryForCurrentUser.path ? "Home" : component.lastPathComponent
+            let name = component.path == FileManager.default.homeDirectoryForCurrentUser.path ? L10n.text("Home") : component.lastPathComponent
             let button = ActionButton(name, tooltip: component.path, maximumWidth: 140) { [weak self] in self?.onNavigate?(component) }
             button.lineBreakMode = .byTruncatingMiddle
             crumbs.addArrangedSubview(button)
@@ -344,7 +344,7 @@ final class PathBar: Surface, NSTextFieldDelegate {
     }
     func beginEditing() {
         editing = true; crumbs.isHidden = true; field.isHidden = false
-        field.stringValue = BrowserLocation.isThisMac(url) ? "This Mac" : url.path; window?.makeFirstResponder(field); field.selectText(nil)
+        field.stringValue = BrowserLocation.isThisMac(url) ? L10n.text("This Mac") : url.path; window?.makeFirstResponder(field); field.selectText(nil)
     }
     @objc private func commit() {
         let text = field.stringValue; window?.makeFirstResponder(nil)
@@ -381,7 +381,7 @@ final class FileTableView: NSTableView {
         let actions: [Selector: FileAction] = [#selector(cut): .cut, #selector(copy(_:)): .copy, #selector(paste): .paste, #selector(undo): .undo]
         if let action = item.action, let fileAction = actions[action] {
             if fileAction == .undo, let menu = item as? NSMenuItem {
-                menu.title = FileOperationController.shared.undoTitle.map { "Undo \($0)" } ?? "Undo"
+                menu.title = FileOperationController.shared.undoTitle.map { L10n.text("Undo %1$@", $0) } ?? L10n.text("Undo")
             }
             return canFileAction?(fileAction) == true
         }

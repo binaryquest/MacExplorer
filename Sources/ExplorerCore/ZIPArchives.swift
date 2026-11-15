@@ -5,7 +5,7 @@ import Darwin
 /// password prompt; every output stays private until the engine commits it.
 enum ZIPArchives {
     static func compress(_ sources: [URL], to output: URL, workspace: URL) async throws {
-        guard let first = sources.first else { throw FileOperationError("Select at least one item to compress.") }
+        guard let first = sources.first else { throw FileOperationError(L10n.text("Select at least one item to compress.")) }
         var parent = first.deletingLastPathComponent()
         while sources.contains(where: { !($0.path.hasPrefix(parent.path == "/" ? "/" : parent.path + "/")) }) {
             parent.deleteLastPathComponent()
@@ -22,11 +22,11 @@ enum ZIPArchives {
 
     static func extract(_ source: URL, to output: URL, workspace: URL) async throws {
         let values = try source.resourceValues(forKeys: [.isRegularFileKey])
-        guard values.isRegularFile == true else { throw FileOperationError("Choose a regular ZIP file to extract.") }
+        guard values.isRegularFile == true else { throw FileOperationError(L10n.text("Choose a regular ZIP file to extract.")) }
         let file = try FileHandle(forReadingFrom: source); defer { try? file.close() }
         let header = try file.read(upToCount: 4) ?? Data()
         guard [Data([0x50, 0x4b, 3, 4]), Data([0x50, 0x4b, 5, 6]), Data([0x50, 0x4b, 7, 8])].contains(header) else {
-            throw FileOperationError("This file is not a supported ZIP archive.")
+            throw FileOperationError(L10n.text("This file is not a supported ZIP archive."))
         }
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
         // Never use -P or -U: bsdtar's default checks reject ../ paths and writes
@@ -35,7 +35,7 @@ enum ZIPArchives {
                        "--no-mac-metadata", "--no-xattrs", "--no-acls", "--no-fflags", "--safe-writes"],
                       directory: output, workspace: workspace)
         guard try FileManager.default.attributesOfItem(atPath: output.path)[.type] as? FileAttributeType == .typeDirectory else {
-            throw FileOperationError("The ZIP attempted to replace the extraction folder.")
+            throw FileOperationError(L10n.text("The ZIP attempted to replace the extraction folder."))
         }
         try propagateQuarantine(from: source, to: output)
     }
@@ -70,7 +70,7 @@ enum ZIPArchives {
             let reader = try FileHandle(forReadingFrom: log); defer { try? reader.close() }
             let data = try reader.read(upToCount: 4096) ?? Data()
             let detail = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-            throw FileOperationError("The ZIP operation could not finish. Password-protected archives are not supported.\n\n\(detail)")
+            throw FileOperationError(L10n.text("The ZIP operation could not finish. Password-protected archives are not supported.\n\n%1$@", detail))
         }
     }
 
@@ -82,10 +82,10 @@ enum ZIPArchives {
             if errno == ENOATTR || errno == ENOTSUP { return }
             throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
         }
-        guard count <= 65_536 else { throw FileOperationError("The ZIP’s quarantine information could not be preserved.") }
+        guard count <= 65_536 else { throw FileOperationError(L10n.text("The ZIP’s quarantine information could not be preserved.")) }
         var data = Data(count: count)
         let read = data.withUnsafeMutableBytes { getxattr(source.path, key, $0.baseAddress, count, 0, 0) }
-        guard read == count else { throw FileOperationError("The ZIP’s quarantine information changed. Try extracting again.") }
+        guard read == count else { throw FileOperationError(L10n.text("The ZIP’s quarantine information changed. Try extracting again.")) }
         func apply(_ url: URL) throws {
             try Task.checkCancellation()
             let attributes = try FileManager.default.attributesOfItem(atPath: url.path)

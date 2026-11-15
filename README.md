@@ -4,6 +4,8 @@
 
 # MacExplorer
 
+The [original MacExplorer project](https://github.com/binaryquest/MacExplorer) was developed by [Sazzad Hossain](https://github.com/djad442) at Binary Quest. My contribution to this fork is the multilingual interface and support for external language packs. — [andyzoer](https://github.com/andyzoer)
+
 A native macOS file manager for people who like Windows Explorer.
 
 MacExplorer brings familiar tabs, a folder tree, drive overviews, and keyboard shortcuts to the Mac, with native Quick Look, thumbnails, and Finder color tags. Built with Swift and AppKit, with Sparkle for signed software updates.

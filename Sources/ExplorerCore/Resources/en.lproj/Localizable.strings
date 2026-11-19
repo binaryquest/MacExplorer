@@ -182,6 +182,7 @@
 "Global shortcut is off." = "Global shortcut is off.";
 "Go" = "Go";
 "Go to Path…" = "Go to Path…";
+"Google Drive folder unavailable" = "Google Drive folder unavailable";
 "Gray" = "Gray";
 "Green" = "Green";
 "Group by" = "Group by";
@@ -416,6 +417,7 @@
 "Yellow" = "Yellow";
 "Yesterday" = "Yesterday";
 "macOS did not return the item's Trash location." = "macOS did not return the item's Trash location.";
+"macOS may be blocking Explorer’s access to this Google Drive folder. Select the folder in the macOS folder picker to try again." = "macOS may be blocking Explorer’s access to this Google Drive folder. Select the folder in the macOS folder picker to try again.";
 "“%1$@” already exists" = "“%1$@” already exists";
 "Apply and Restart" = "Apply and Restart";
 "Replace installed language packs?" = "Replace installed language packs?";

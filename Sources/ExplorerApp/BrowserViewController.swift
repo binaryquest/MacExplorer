@@ -33,7 +33,7 @@ final class BrowserTab {
     var scrollPositions: [String: CGFloat] = [:]
     var loading = false
     var changedDuringLoad = false
-    var error: String?
+    var error: BrowserLoadError?
     var loadTask: Task<Void, Never>?
     var sortTask: Task<Void, Never>?
     var generation = UUID()
@@ -535,6 +535,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         cancelSearchWork()
         updateSearchControls(); applyPresentationMode()
         let tab = self.tab, url = tab.history.current
+        let isGoogleDriveShortcut = StorageStore.shared.isGoogleDriveShortcut(url)
         tab.loadTask?.cancel(); tab.sortTask?.cancel(); refreshTask?.cancel()
         tab.generation = UUID(); let generation = tab.generation
         tab.error = nil; tab.loading = true; tab.changedDuringLoad = false
@@ -563,7 +564,8 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
                 if tab.changedDuringLoad { self.scheduleRefresh() }
             } catch {
                 guard !Task.isCancelled, let self, let tab, tab.generation == generation, self.tab === tab else { return }
-                tab.loading = false; tab.items = []; tab.clearVisible(); tab.error = error.localizedDescription
+                tab.loading = false; tab.items = []; tab.clearVisible()
+                tab.error = BrowserLoadError(folderError: error, isGoogleDriveShortcut: isGoogleDriveShortcut)
                 self.suppressSelection = true; self.cancelVisibleThumbnails(); self.table.reloadData(); self.collection.reloadData(); self.suppressSelection = false
                 self.updateStatus(); self.updateEmptyState(); self.updateQuickLookSelection()
             }
@@ -628,9 +630,12 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
     func updateEmptyState() {
         if tab.isThisMac { emptyStack.isHidden = true; return }
         emptyStack.isHidden = !tab.visible.isEmpty || tab.loading
-        if let error = tab.error {
+        if tab.error == .googleDriveAccess {
+            emptyTitle.stringValue = L10n.text("Google Drive folder unavailable")
+            emptyDescription.stringValue = L10n.text("macOS may be blocking Explorer’s access to this Google Drive folder. Select the folder in the macOS folder picker to try again.")
+        } else if case let .other(message) = tab.error {
             emptyTitle.stringValue = L10n.text("This folder couldn’t be opened")
-            emptyDescription.stringValue = error + L10n.text("\nChoose another folder or check its access permissions.")
+            emptyDescription.stringValue = message + L10n.text("\nChoose another folder or check its access permissions.")
         } else if tab.isRecursiveSearch {
             emptyTitle.stringValue = tab.searchStopped ? L10n.text("Search stopped") : L10n.text("No matching files")
             emptyDescription.stringValue = L10n.text("Search names in this folder and its subfolders. Try a different name or clear the search.")

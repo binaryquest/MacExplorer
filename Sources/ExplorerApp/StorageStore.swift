@@ -22,6 +22,13 @@ final class StorageStore {
     @objc private func volumesChanged() { refresh() }
     @objc private func activated() { refreshIfNeeded() }
     func refreshIfNeeded() { if pending == 0 && !refreshing && Date().timeIntervalSince(refreshedAt) > 30 { refresh() } }
+    func isGoogleDriveShortcut(_ url: URL) -> Bool {
+        let path = url.standardizedFileURL.path
+        return locations.contains { location in
+            location.kind == .googleDrive && (location.url.standardizedFileURL.path == path ||
+                location.children.contains { $0.url.standardizedFileURL.path == path })
+        }
+    }
     func refresh() {
         if DemoData.active {
             locations = DemoData.locations; refreshedAt = Date(); refreshing = false

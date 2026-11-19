@@ -1,6 +1,36 @@
 import AppKit
 import ExplorerCore
 
+enum BrowserLoadError: Equatable {
+    case googleDriveAccess
+    case other(String)
+
+    init(folderError: Error, isGoogleDriveShortcut: Bool) {
+        if isGoogleDriveShortcut, Self.mayBeAccessError(folderError as NSError) {
+            self = .googleDriveAccess
+        } else {
+            self = .other(folderError.localizedDescription)
+        }
+    }
+
+    private static func mayBeAccessError(_ error: NSError) -> Bool {
+        let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError
+        switch (error.domain, error.code) {
+        case (NSCocoaErrorDomain, NSFileReadNoPermissionError),
+             (NSPOSIXErrorDomain, Int(EACCES)), (NSPOSIXErrorDomain, Int(EPERM)):
+            return true
+        case (NSCocoaErrorDomain, NSFileReadUnknownError):
+            // File Provider can report ENOTDIR even though the shortcut passed directory validation.
+            if let underlying, underlying.domain == NSPOSIXErrorDomain, underlying.code == Int(ENOTDIR) {
+                return true
+            }
+            return underlying.map(mayBeAccessError) ?? true
+        default:
+            return underlying.map(mayBeAccessError) ?? false
+        }
+    }
+}
+
 extension BrowserViewController {
     func loadThisMac() {
         cancelSearchWork(); tab.loadTask?.cancel(); tab.sortTask?.cancel(); refreshTask?.cancel()

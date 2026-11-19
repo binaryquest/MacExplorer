@@ -128,7 +128,7 @@ extension BrowserViewController {
                 tab.loading = false; tab.searchTask = nil; self.updateStatus(); self.updateEmptyState()
             } catch {
                 guard !Task.isCancelled, self.tab === tab, tab.searchGeneration == generation else { return }
-                tab.loading = false; tab.searchTask = nil; tab.error = error.localizedDescription
+                tab.loading = false; tab.searchTask = nil; tab.error = .other(error.localizedDescription)
                 self.updateStatus(); self.updateEmptyState()
             }
         }

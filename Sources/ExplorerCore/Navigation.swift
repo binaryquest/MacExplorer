@@ -34,8 +34,7 @@ public enum FolderPath {
     public static func resolve(_ text: String, relativeTo current: URL) -> URL? {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
-        if text.caseInsensitiveCompare("This Mac") == .orderedSame || text.caseInsensitiveCompare(L10n.text("This Mac")) == .orderedSame
-            || text == BrowserLocation.thisMac.absoluteString { return BrowserLocation.thisMac }
+        if isThisMac(text) { return BrowserLocation.thisMac }
         if text.hasPrefix("file://") {
             guard let url = URL(string: text), url.isFileURL else { return nil }
             return url.standardizedFileURL
@@ -44,5 +43,59 @@ public enum FolderPath {
         if path.hasPrefix("/") { return URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL }
         let base = current.isFileURL ? current : FileManager.default.homeDirectoryForCurrentUser
         return base.appendingPathComponent(path, isDirectory: true).standardizedFileURL
+    }
+
+    private static func isThisMac(_ text: String) -> Bool {
+        text.caseInsensitiveCompare("This Mac") == .orderedSame
+            || text.caseInsensitiveCompare(L10n.text("This Mac")) == .orderedSame
+            || text == BrowserLocation.thisMac.absoluteString
+    }
+
+    /// Folder completions for a partially typed path, as Windows Explorer's address bar offers them.
+    /// Each suggestion keeps the text the user typed up to the last "/" and appends a matching folder name,
+    /// so "~/Doc" suggests "~/Documents". A dot prefix opts in to dot-prefixed folders.
+    public static func suggestions(for text: String, relativeTo current: URL, limit: Int = 200, fileManager: FileManager = .default) -> [String] {
+        guard !text.isEmpty, !text.hasPrefix("file://"), !isThisMac(text) else {
+            return []
+        }
+        let head: String
+        let partial: String
+        if let slash = text.lastIndex(of: "/") {
+            head = String(text[...slash])
+            partial = String(text[text.index(after: slash)...])
+        } else {
+            head = ""
+            partial = text
+        }
+        guard let directory = resolve(head.isEmpty ? "." : head, relativeTo: current), directory.isFileURL else {
+            return []
+        }
+        let showHidden = partial.hasPrefix(".")
+        guard !Task.isCancelled, let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else {
+            return []
+        }
+        var matches: [String] = []
+        for name in names {
+            guard !Task.isCancelled else { return [] }
+            if !showHidden && name.hasPrefix(".") {
+                continue
+            }
+            if !partial.isEmpty && name.range(of: partial, options: [.caseInsensitive, .anchored]) == nil {
+                continue
+            }
+            var isDirectory: ObjCBool = false
+            let path = directory.appendingPathComponent(name).path
+            guard fileManager.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue else {
+                continue
+            }
+            // Bundles such as apps open as files, not folders.
+            let values = try? URL(fileURLWithPath: path).resourceValues(forKeys: [.isPackageKey, .isHiddenKey])
+            guard values?.isPackage != true, showHidden || values?.isHidden != true else {
+                continue
+            }
+            matches.append(name)
+        }
+        matches.sort { $0.localizedStandardCompare($1) == .orderedAscending }
+        return matches.prefix(limit).map { head + $0 }
     }
 }

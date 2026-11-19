@@ -287,7 +287,7 @@ final class PathBar: Surface, NSTextFieldDelegate {
     private var editing = false
     private var searchResults: String?
     private let suggestions = PathSuggestionPopup()
-    private var suggestionGeneration = 0
+    private(set) var suggestionTask: Task<Void, Never>?
     /// What the user typed, kept while arrow keys preview suggestions in the field.
     private var typedText = ""
     override init(frame: NSRect) {
@@ -320,7 +320,7 @@ final class PathBar: Surface, NSTextFieldDelegate {
     func update(_ url: URL, searchResults: String? = nil) {
         self.searchResults = searchResults
         self.url = url; field.stringValue = BrowserLocation.isThisMac(url) ? "This Mac" : url.path
-        suggestionGeneration += 1; suggestions.hide()
+        dismissSuggestions()
         editing = false; field.isHidden = true; crumbs.isHidden = false
         crumbs.arrangedSubviews.forEach { crumbs.removeArrangedSubview($0); $0.removeFromSuperview() }
         if let searchResults {
@@ -355,13 +355,14 @@ final class PathBar: Surface, NSTextFieldDelegate {
         }
     }
     func beginEditing() {
+        dismissSuggestions()
         editing = true; crumbs.isHidden = true; field.isHidden = false
         field.stringValue = BrowserLocation.isThisMac(url) ? "This Mac" : url.path; typedText = field.stringValue
         // selectText(_:) would end the session makeFirstResponder just started, and ending it reverts to breadcrumbs.
         window?.makeFirstResponder(field); field.currentEditor()?.selectAll(nil)
     }
     @objc private func commit() {
-        suggestionGeneration += 1; suggestions.hide()
+        dismissSuggestions()
         let text = field.stringValue; window?.makeFirstResponder(nil)
         onCommit?(text)
     }
@@ -376,15 +377,16 @@ final class PathBar: Surface, NSTextFieldDelegate {
             guard suggestions.isVisible, let completion = suggestions.highlightedOrFirst else {
                 return false
             }
-            field.stringValue = completion; typedText = completion
-            textView.selectedRange = NSRange(location: (completion as NSString).length, length: 0)
+            let completedPath = completion + "/"
+            field.stringValue = completedPath; typedText = completedPath
+            textView.selectedRange = NSRange(location: (completedPath as NSString).length, length: 0)
             refreshSuggestions()
             return true
         case #selector(NSResponder.cancelOperation(_:)):
             // First Esc closes the list and restores what was typed; the next one leaves editing.
             if suggestions.isVisible {
-                suggestionGeneration += 1
-                suggestions.hide(); field.stringValue = typedText
+                dismissSuggestions()
+                field.stringValue = typedText
                 return true
             }
             update(url, searchResults: searchResults); window?.makeFirstResponder(nil)
@@ -394,9 +396,11 @@ final class PathBar: Surface, NSTextFieldDelegate {
         }
     }
     func controlTextDidEndEditing(_ obj: Notification) {
-        suggestions.hide()
         // Keep the typed path until the commit action has handled Return.
-        if let movement = obj.userInfo?["NSTextMovement"] as? Int, movement == NSReturnTextMovement { return }
+        if let movement = obj.userInfo?["NSTextMovement"] as? Int, movement == NSReturnTextMovement {
+            dismissSuggestions()
+            return
+        }
         if editing { update(url, searchResults: searchResults) }
     }
     func controlTextDidChange(_ obj: Notification) {
@@ -404,26 +408,24 @@ final class PathBar: Surface, NSTextFieldDelegate {
         refreshSuggestions()
     }
     private func refreshSuggestions() {
+        dismissSuggestions()
         let text = typedText
         let base = url
-        suggestionGeneration += 1
-        let generation = suggestionGeneration
-        guard !text.isEmpty else {
-            suggestions.hide()
-            return
-        }
+        guard !text.isEmpty else { return }
         // Listing a slow network folder must not stall typing.
-        Task { [weak self] in
-            let items = await Task.detached(priority: .userInitiated) { FolderPath.suggestions(for: text, relativeTo: base) }.value
-            guard let self, self.editing, generation == self.suggestionGeneration else {
-                return
-            }
-            if items.isEmpty {
-                self.suggestions.hide()
-            } else {
+        suggestionTask = Task.detached(priority: .userInitiated) { [weak self] in
+            let items = FolderPath.suggestions(for: text, relativeTo: base)
+            guard !items.isEmpty else { return }
+            await MainActor.run { [weak self] in
+                guard let self, self.editing, !Task.isCancelled else { return }
                 self.suggestions.show(items, below: self)
             }
         }
+    }
+    private func dismissSuggestions() {
+        suggestionTask?.cancel()
+        suggestionTask = nil
+        suggestions.hide()
     }
     private func moveSuggestionSelection(by delta: Int) -> Bool {
         guard suggestions.isVisible else {

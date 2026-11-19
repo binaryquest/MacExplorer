@@ -47,7 +47,7 @@ public enum FolderPath {
 
     /// Folder completions for a partially typed path, as Windows Explorer's address bar offers them.
     /// Each suggestion keeps the text the user typed up to the last "/" and appends a matching folder name,
-    /// so "~/Doc" suggests "~/Documents". Hidden folders appear only once the typed name starts with ".".
+    /// so "~/Doc" suggests "~/Documents". A dot prefix opts in to dot-prefixed folders.
     public static func suggestions(for text: String, relativeTo current: URL, limit: Int = 200, fileManager: FileManager = .default) -> [String] {
         guard !text.isEmpty, !text.hasPrefix("file://"), text.caseInsensitiveCompare("This Mac") != .orderedSame else {
             return []
@@ -65,11 +65,12 @@ public enum FolderPath {
             return []
         }
         let showHidden = partial.hasPrefix(".")
-        guard let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else {
+        guard !Task.isCancelled, let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else {
             return []
         }
         var matches: [String] = []
         for name in names {
+            guard !Task.isCancelled else { return [] }
             if !showHidden && name.hasPrefix(".") {
                 continue
             }
@@ -82,7 +83,8 @@ public enum FolderPath {
                 continue
             }
             // Bundles such as apps open as files, not folders.
-            if (try? URL(fileURLWithPath: path).resourceValues(forKeys: [.isPackageKey]).isPackage) == true {
+            let values = try? URL(fileURLWithPath: path).resourceValues(forKeys: [.isPackageKey, .isHiddenKey])
+            guard values?.isPackage != true, showHidden || values?.isHidden != true else {
                 continue
             }
             matches.append(name)
@@ -91,4 +93,3 @@ public enum FolderPath {
         return matches.prefix(limit).map { head + $0 }
     }
 }
-

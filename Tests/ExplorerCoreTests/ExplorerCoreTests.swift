@@ -41,9 +41,13 @@ final class NavigationTests: XCTestCase {
     func testPathSuggestionsListMatchingFolders() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("explorer-suggest-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: root) }
-        for folder in ["Documents", "downloads", "Desktop", ".dotfolder", "Music", "Doc.app"] {
+        for folder in ["Documents", "downloads", "Desktop", ".dotfolder", "Music", "Doc.app", "DocsHidden"] {
             try FileManager.default.createDirectory(at: root.appendingPathComponent(folder), withIntermediateDirectories: true)
         }
+        var hiddenFolder = root.appendingPathComponent("DocsHidden")
+        var hiddenValues = URLResourceValues()
+        hiddenValues.isHidden = true
+        try hiddenFolder.setResourceValues(hiddenValues)
         try Data().write(to: root.appendingPathComponent("Doc.txt"))
         XCTAssertEqual(FolderPath.suggestions(for: root.path + "/d", relativeTo: root), ["Desktop", "Documents", "downloads"].map { root.path + "/" + $0 })
         XCTAssertEqual(FolderPath.suggestions(for: "Do", relativeTo: root), ["Documents", "downloads"])

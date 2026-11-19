@@ -78,6 +78,8 @@ The build keeps a **Localizations** folder beside `build/Explorer.app`, where Ex
 
 In **Settings → Applications**, choose your terminal and text editor. The defaults are macOS Terminal and TextEdit; installed alternatives such as iTerm2, Warp, Visual Studio Code, Sublime Text, and Zed appear automatically. **Choose Application…** lets you select another app. A custom terminal must accept folder URLs through macOS’s standard Open mechanism.
 
+In the same pane, **Set as Default…** asks macOS to use Explorer for folder opens that use the system default. If macOS accepts the request, **Use Finder…** lets you switch back. The pane shows which app currently opens folders. **Reveal in Finder** still opens Finder.
+
 Right-click a folder, sidebar location, or drive to open a terminal there; right-click empty folder space to use the current folder. For a selected file, the terminal opens its containing folder. Text files—including JSON, YAML, scripts, and dotfiles—offer **Open with [editor]**; other regular files offer **Open as Text with [editor]**. These preferences do not change macOS file associations or normal double-click behavior.
 
 **Open With** lists applications macOS registers for the selected files, with the shared default first. For multiple files, it lists apps that handle every selected file; **Other…** lets you choose an application manually. This opens the files once without changing their default app.

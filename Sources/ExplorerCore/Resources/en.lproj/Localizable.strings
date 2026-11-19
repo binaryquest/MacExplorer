@@ -21,6 +21,7 @@
 "%1$@ copied" = "%1$@ copied";
 "%1$@ could not be found. Choose another application in Explorer Settings → Applications." = "%1$@ could not be found. Choose another application in Explorer Settings → Applications.";
 "%1$@ couldn’t finish" = "%1$@ couldn’t finish";
+"%1$@ currently opens folders by default." = "%1$@ currently opens folders by default.";
 "%1$@ cut · Paste to move" = "%1$@ cut · Paste to move";
 "%1$@ file" = "%1$@ file";
 "%1$@ folders unreadable" = "%1$@ folders unreadable";
@@ -79,6 +80,7 @@
 "Choose where to create the “%1$@” folder for the extracted files." = "Choose where to create the “%1$@” folder for the extracted files.";
 "Choose your terminal application." = "Choose your terminal application.";
 "Choose your text editor." = "Choose your text editor.";
+"Choose your folder, terminal, and editor apps." = "Choose your folder, terminal, and editor apps.";
 "Clear search" = "Clear search";
 "Click the shortcut to record a new combination. While enabled, it takes precedence over the same shortcut in other apps." = "Click the shortcut to record a new combination. While enabled, it takes precedence over the same shortcut in other apps.";
 "Close %1$@ tab" = "Close %1$@ tab";
@@ -103,6 +105,7 @@
 "Could not update login settings: %1$@" = "Could not update login settings: %1$@";
 "Couldn’t Open Application" = "Couldn’t Open Application";
 "Couldn’t Open Properties" = "Couldn’t Open Properties";
+"Couldn’t change the default folder app. %1$@" = "Couldn’t change the default folder app. %1$@";
 "Create" = "Create";
 "Current folder" = "Current folder";
 "Cut" = "Cut";
@@ -111,6 +114,7 @@
 "Date created" = "Date created";
 "Date modified" = "Date modified";
 "Date modified: %1$@" = "Date modified: %1$@";
+"Default app for folders" = "Default app for folders";
 "Default folder view" = "Default folder view";
 "Default search scope" = "Default search scope";
 "Descending" = "Descending";
@@ -165,6 +169,7 @@
 "Finder tags changed on %1$@. Refresh and try again." = "Finder tags changed on %1$@. Refresh and try again.";
 "Finder tags changed while being read. Try again." = "Finder tags changed while being read. Try again.";
 "Finder tags could not be read. Existing tags were left untouched." = "Finder tags could not be read. Existing tags were left untouched.";
+"Finder is unavailable." = "Finder is unavailable.";
 "Focus Other Pane" = "Focus Other Pane";
 "Folder" = "Folder";
 "Folder path" = "Folder path";
@@ -417,7 +422,10 @@
 "Yellow" = "Yellow";
 "Yesterday" = "Yesterday";
 "macOS did not return the item's Trash location." = "macOS did not return the item's Trash location.";
+"macOS did not apply the change." = "macOS did not apply the change.";
+"macOS did not report a default app for folders." = "macOS did not report a default app for folders.";
 "macOS may be blocking Explorer’s access to this Google Drive folder. Select the folder in the macOS folder picker to try again." = "macOS may be blocking Explorer’s access to this Google Drive folder. Select the folder in the macOS folder picker to try again.";
+"macOS rejected the request to change the default app for folders." = "macOS rejected the request to change the default app for folders.";
 "“%1$@” already exists" = "“%1$@” already exists";
 "Apply and Restart" = "Apply and Restart";
 "Replace installed language packs?" = "Replace installed language packs?";
@@ -429,3 +437,6 @@
 "Language packs installed" = "Language packs installed";
 "No language packs found" = "No language packs found";
 "Couldn’t Install Language Packs" = "Couldn’t Install Language Packs";
+"Set as Default…" = "Set as Default…";
+"This applies when an app opens a folder using the macOS default. Reveal in Finder still opens Finder." = "This applies when an app opens a folder using the macOS default. Reveal in Finder still opens Finder.";
+"Use Finder…" = "Use Finder…";

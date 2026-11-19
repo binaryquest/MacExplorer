@@ -106,6 +106,7 @@
 "Couldn’t Open Application" = "Couldn’t Open Application";
 "Couldn’t Open Properties" = "Couldn’t Open Properties";
 "Couldn’t change the default folder app. %1$@" = "Couldn’t change the default folder app. %1$@";
+"Couldn’t export the crash report" = "Couldn’t export the crash report";
 "Create" = "Create";
 "Current folder" = "Current folder";
 "Cut" = "Cut";
@@ -147,6 +148,8 @@
 "Explorer must be running. Closing all browser windows keeps the shortcut available; quitting Explorer disables it until the next launch. Enable Open Explorer at login in General to make it available after signing in." = "Explorer must be running. Closing all browser windows keeps the shortcut available; quitting Explorer disables it until the next launch. Enable Open Explorer at login in General to make it available after signing in.";
 "Explorer will open when you sign in." = "Explorer will open when you sign in.";
 "Explorer, one shortcut away" = "Explorer, one shortcut away";
+"Export Crash Report" = "Export Crash Report";
+"Export Crash Report…" = "Export Crash Report…";
 "Export Demo Screenshot" = "Export Demo Screenshot";
 "External volume" = "External volume";
 "Extra large icons" = "Extra large icons";
@@ -195,6 +198,8 @@
 "Groups descending" = "Groups descending";
 "Hide Explorer" = "Hide Explorer";
 "Hide Others" = "Hide Others";
+"Help" = "Help";
+"If Explorer just crashed, give macOS a moment to finish writing the report and try again." = "If Explorer just crashed, give macOS a moment to finish writing the report and try again.";
 "Home" = "Home";
 "Huge (1–4 GB)" = "Huge (1–4 GB)";
 "Interface language" = "Interface language";
@@ -248,6 +253,7 @@
 "New folder (⇧⌘N or Ctrl+Shift+N)" = "New folder (⇧⌘N or Ctrl+Shift+N)";
 "New tab (⌘T)" = "New tab (⌘T)";
 "Next Tab" = "Next Tab";
+"No Explorer crash report found" = "No Explorer crash report found";
 "No Registered Applications" = "No Registered Applications";
 "No locations match “%1$@”." = "No locations match “%1$@”.";
 "No matching files" = "No matching files";
@@ -373,6 +379,7 @@
 "Text editor" = "Text editor";
 "That name can’t be used" = "That name can’t be used";
 "The ZIP attempted to replace the extraction folder." = "The ZIP attempted to replace the extraction folder.";
+"The ZIP includes the crash report and version details. Review the report for personal information before sharing it." = "The ZIP includes the crash report and version details. Review the report for personal information before sharing it.";
 "The ZIP operation could not finish. Password-protected archives are not supported.\n\n%1$@" = "The ZIP operation could not finish. Password-protected archives are not supported.\n\n%1$@";
 "The ZIP’s quarantine information changed. Try extracting again." = "The ZIP’s quarantine information changed. Try extracting again.";
 "The ZIP’s quarantine information could not be preserved." = "The ZIP’s quarantine information could not be preserved.";

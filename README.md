@@ -4,7 +4,7 @@
 
 # MacExplorer
 
-The [original MacExplorer project](https://github.com/binaryquest/MacExplorer) was developed by [Sazzad Hossain](https://github.com/djad442) at Binary Quest. My contribution to this fork is the multilingual interface and support for external language packs. — [andyzoer](https://github.com/andyzoer)
+MacExplorer was developed by [Sazzad Hossain](https://github.com/djad442) at Binary Quest. [andyzoer](https://github.com/andyzoer) contributed the multilingual interface and support for external language packs.
 
 A native macOS file manager for people who like Windows Explorer.
 
@@ -12,9 +12,15 @@ MacExplorer brings familiar tabs, a folder tree, drive overviews, and keyboard s
 
 **Early development · macOS 14+ · MIT licensed**
 
-## Multilingual edition
+## Download
 
-This fork adds a multilingual interface and support for custom language packs. English is built in. Install additional packs or create your own using the [translation guide](docs/LOCALIZATION.md) and the [translator notes](Localizations/TRANSLATING.txt). You can add or edit a pack without rebuilding Explorer. Missing entries appear in English.
+[Download Explorer for Mac](https://explorer.bquick.io/#download) · [Release notes and checksums](https://github.com/binaryquest/MacExplorer/releases/latest)
+
+Open the DMG and drag **Explorer** into **Applications**. The app is Developer ID signed and notarized by Apple, with one universal download for Apple Silicon and Intel. Future updates are available through **Explorer → Check for Updates…**. Automatic update preferences are in **Settings → Updates**.
+
+## Languages
+
+English is built in. Install additional packs or create your own using the [translation guide](docs/LOCALIZATION.md) and the [translator notes](Localizations/TRANSLATING.txt). You can add or edit a pack without rebuilding Explorer. Missing entries appear in English.
 
 ### Supported languages
 
@@ -23,13 +29,11 @@ This fork adds a multilingual interface and support for custom language packs. E
 
 The language packs use machine translation with some manual edits. Translations may be inaccurate or inconsistent. Contributions from fluent speakers are welcome.
 
-### Installation
+### Installing and choosing a language
 
-1. If you have the multilingual edition’s DMG, open it and double-click **Install Explorer.command**. It installs Explorer in **Applications** and copies the language packs into your user Library.
-2. For manual installation from that DMG, drag **Explorer.app** onto **Applications**. Run **Open Language Packs Folder.command**, then copy the desired `.lproj` folders from **Localizations** into the Finder window it opens.
-3. Open Explorer from **Applications**. Go to **Settings → General → Interface language**. Leave **Automatic (macOS)** selected to follow your primary system language, or choose a language and click **Apply and Restart**.
+If your DMG includes language packs, run **Install Explorer.command** to install the app and add the packs. You can also use **Settings → General → Install Language Packs…** to import a `.lproj` folder or a folder containing packs. Explorer asks for confirmation before replacing installed packs.
 
-You can also build this edition from source using the commands below. The [official upstream releases](https://github.com/binaryquest/MacExplorer/releases) are maintained separately.
+Under **Settings → General → Interface language**, leave **Automatic (macOS)** selected to follow your primary system language, or choose a language and click **Apply and Restart**.
 
 ![This Mac with drives, storage usage bars, and cloud locations](docs/images/this-mac.png)
 
@@ -60,7 +64,7 @@ Two panes make it easy to work across folders, with independent tabs and views.
 You need **macOS 14 or later** and a **Swift 6 toolchain** from Xcode or Xcode Command Line Tools.
 
 ```sh
-git clone --branch multilingual-localization https://github.com/andyzoer/MacExplorer.git
+git clone https://github.com/binaryquest/MacExplorer.git
 cd MacExplorer
 zsh scripts/build.sh
 open build/Explorer.app

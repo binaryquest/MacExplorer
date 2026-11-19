@@ -65,28 +65,38 @@ package struct LocalizationCatalog: Sendable {
         return Locale(identifier: name).identifier(.bcp47)
     }
 
-    package static func install(from source: URL) throws -> Bool {
-        try install(from: source, into: userDirectory)
+    package struct ReplacementRequired: Error, Equatable {
+        package let identifiers: [String]
     }
 
-    package static func install(from source: URL, into destination: URL) throws -> Bool {
+    package static func install(from source: URL, replacing confirmed: Set<String> = []) throws -> Bool {
+        try install(from: source, into: userDirectory, replacing: confirmed)
+    }
+
+    package static func install(from source: URL, into destination: URL, replacing confirmed: Set<String> = []) throws -> Bool {
         let files = FileManager.default
         let candidates = source.pathExtension == "lproj" ? [source] :
             try files.contentsOfDirectory(at: source, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
-        let packs = candidates.compactMap { folder -> (URL, String)? in
-            guard let identifier = identifier(for: folder), ExternalLocalization(folder: folder) != nil else { return nil }
-            return (folder, identifier)
+        var packs: [String: URL] = [:]
+        for folder in candidates.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            guard let identifier = identifier(for: folder), ExternalLocalization(folder: folder) != nil else { continue }
+            packs[identifier] = folder
         }
         guard !packs.isEmpty else { return false }
+
+        let orderedPacks = packs.sorted { $0.key < $1.key }
+        let unconfirmed = orderedPacks.map(\.key).filter {
+            !confirmed.contains($0) && files.fileExists(atPath: destination.appendingPathComponent("\($0).lproj").path)
+        }
+        guard unconfirmed.isEmpty else { throw ReplacementRequired(identifiers: unconfirmed) }
 
         try files.createDirectory(at: destination, withIntermediateDirectories: true)
         let staging = destination.appendingPathComponent(".install-\(UUID())", isDirectory: true)
         try files.createDirectory(at: staging, withIntermediateDirectories: false)
         defer { try? files.removeItem(at: staging) }
 
-        for (source, identifier) in packs {
-            let name = "\(identifier).lproj"
-            let copy = staging.appendingPathComponent(name, isDirectory: true)
+        for (identifier, source) in orderedPacks {
+            let copy = staging.appendingPathComponent("\(identifier).lproj", isDirectory: true)
             try files.createDirectory(at: copy, withIntermediateDirectories: false)
             for filename in ["Localizable.strings", "Localizable.stringsdict", "LocalizationCredit.strings"] {
                 let resource = source.appendingPathComponent(filename)
@@ -95,8 +105,13 @@ package struct LocalizationCatalog: Sendable {
                     try data.write(to: copy.appendingPathComponent(filename))
                 }
             }
+        }
+        for (identifier, _) in orderedPacks {
+            let name = "\(identifier).lproj"
+            let copy = staging.appendingPathComponent(name, isDirectory: true)
             let installed = destination.appendingPathComponent(name, isDirectory: true)
             if files.fileExists(atPath: installed.path) {
+                guard confirmed.contains(identifier) else { throw ReplacementRequired(identifiers: [identifier]) }
                 _ = try files.replaceItemAt(installed, withItemAt: copy)
             } else {
                 try files.moveItem(at: copy, to: installed)

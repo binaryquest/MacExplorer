@@ -8,7 +8,7 @@ English is included in Explorer. Open the disk image and double-click **Install 
 
 For manual installation, drag **Explorer.app** onto **Applications** in the disk image. Run **Open Language Packs Folder.command** and copy the desired `.lproj` folders from the image’s **Localizations** folder into the Finder window that opens. Reopen Explorer to load them. **Localizations/TRANSLATING.txt** provides an offline guide for new translations.
 
-Explorer stores installed packs in `~/Library/Application Support/Explorer/Localizations/`. You can also add packs from **Settings → General → Install Language Packs…** or copy them there using Finder. Replacing the app in **Applications** keeps those packs. To remove both, run **Uninstall Explorer.command** from the disk image. It moves the app and the installed language packs to Trash and keeps your preferences.
+Explorer stores installed packs in `~/Library/Application Support/Explorer/Localizations/`. You can also add packs from **Settings → General → Install Language Packs…** or copy them there using Finder. If the import includes an already installed language, Explorer lists the affected packs and asks before replacing them. Cancel stops the import. Replacing the app in **Applications** keeps those packs. To remove both, run **Uninstall Explorer.command** from the disk image. It moves the app and the installed language packs to Trash and keeps your preferences.
 
 A local build includes a separate `Localizations` folder beside `build/Explorer.app`. Explorer finds those packs when launched in place. A user-installed pack takes precedence over a same-language pack beside the app. Keep the folder beside the app or install it before moving the app elsewhere.
 

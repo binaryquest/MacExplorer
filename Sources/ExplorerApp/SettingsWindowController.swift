@@ -357,11 +357,11 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    private func installLanguagePacks(from url: URL) {
+    private func installLanguagePacks(from url: URL, replacing confirmed: Set<String> = []) {
         guard let window else { return }
         let alert = NSAlert()
         do {
-            if try LocalizationCatalog.install(from: url) {
+            if try LocalizationCatalog.install(from: url, replacing: confirmed) {
                 alert.messageText = L10n.text("Language packs installed")
                 alert.informativeText = L10n.text("Quit and reopen Explorer to apply the language change.")
                 if onLanguageRestart != nil {
@@ -376,12 +376,32 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
                 alert.messageText = L10n.text("No language packs found")
                 alert.informativeText = L10n.text("Choose a language pack folder or a folder containing language packs.")
             }
+        } catch let replacement as LocalizationCatalog.ReplacementRequired {
+            confirmLanguagePackReplacement(replacement.identifiers, from: url, replacing: confirmed, in: window)
+            return
         } catch {
             alert.messageText = L10n.text("Couldn’t Install Language Packs")
             alert.informativeText = error.localizedDescription
         }
         alert.addButton(withTitle: L10n.text("OK"))
         alert.beginSheetModal(for: window)
+    }
+
+    private func confirmLanguagePackReplacement(_ identifiers: [String], from url: URL,
+                                                replacing confirmed: Set<String>, in window: NSWindow) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.text("Replace installed language packs?")
+        let languages = identifiers.map { "\(InterfaceLanguage(identifier: $0).title) (\($0))" }.joined(separator: "\n")
+        alert.informativeText = L10n.text("This will replace the installed copies and their custom translations.\n\n%1$@", languages)
+        let cancel = alert.addButton(withTitle: L10n.text("Cancel"))
+        cancel.keyEquivalent = "\u{1b}"
+        let replace = alert.addButton(withTitle: L10n.text("Replace and Install"))
+        replace.hasDestructiveAction = true
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard response == .alertSecondButtonReturn else { return }
+            self?.installLanguagePacks(from: url, replacing: confirmed.union(identifiers))
+        }
     }
 
     @objc private func applyLanguage() { onLanguageRestart?() }

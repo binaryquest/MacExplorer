@@ -416,6 +416,9 @@
 "macOS did not return the item's Trash location." = "macOS did not return the item's Trash location.";
 "“%1$@” already exists" = "“%1$@” already exists";
 "Apply and Restart" = "Apply and Restart";
+"Replace installed language packs?" = "Replace installed language packs?";
+"This will replace the installed copies and their custom translations.\n\n%1$@" = "This will replace the installed copies and their custom translations.\n\n%1$@";
+"Replace and Install" = "Replace and Install";
 "Couldn’t Restart Explorer" = "Couldn’t Restart Explorer";
 "Install Language Packs…" = "Install Language Packs…";
 "Choose a language pack folder or a folder containing language packs." = "Choose a language pack folder or a folder containing language packs.";

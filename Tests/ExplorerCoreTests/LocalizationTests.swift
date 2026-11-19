@@ -133,7 +133,7 @@ struct LocalizationTests {
         #expect(italian.text("About Explorer") == "Installed")
     }
 
-    @Test func installingPacksCopiesOnlyResourcesAndUpdatesExistingLanguages() throws {
+    @Test func installingPacksCopiesOnlyResourcesAndRequiresApprovalForReplacement() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
         let source = root.appendingPathComponent("Selected")
@@ -144,15 +144,26 @@ struct LocalizationTests {
         try "\"Search\" = \"Cerca\";".write(to: strings, atomically: true, encoding: .utf8)
         try Data("ignored".utf8).write(to: pack.appendingPathComponent("unrelated.txt"))
         let installedPack = installed.appendingPathComponent("it.lproj")
-        let first = try LocalizationCatalog.install(from: source, into: installed)
+        let first = try LocalizationCatalog.install(from: pack, into: installed)
         #expect(first)
         #expect(!FileManager.default.fileExists(atPath: installedPack.appendingPathComponent("unrelated.txt").path))
         try "\"Search\" = \"Ricerca\";".write(to: strings, atomically: true, encoding: .utf8)
-        let update = try LocalizationCatalog.install(from: pack, into: installed)
+        let french = source.appendingPathComponent("fr.lproj")
+        try FileManager.default.createDirectory(at: french, withIntermediateDirectories: false)
+        try "\"Search\" = \"Rechercher\";".write(to: french.appendingPathComponent("Localizable.strings"),
+                                                  atomically: true, encoding: .utf8)
+        #expect(throws: LocalizationCatalog.ReplacementRequired(identifiers: ["it"])) {
+            try LocalizationCatalog.install(from: source, into: installed)
+        }
+        #expect(try String(contentsOf: installedPack.appendingPathComponent("Localizable.strings"), encoding: .utf8) == "\"Search\" = \"Cerca\";")
+        #expect(!FileManager.default.fileExists(atPath: installed.appendingPathComponent("fr.lproj").path))
+
+        let update = try LocalizationCatalog.install(from: source, into: installed, replacing: ["it"])
         #expect(update)
         let catalog = LocalizationCatalog(externalDirectories: [installed])
         let l10n = L10n(language: catalog.language(for: "it-IT"), catalog: catalog)
         #expect(l10n.text("Search") == "Ricerca")
+        #expect(catalog.language(for: "fr-FR").identifier == "fr")
     }
 
     @Test func externalPluralRulesUseTheExternalLanguage() throws {

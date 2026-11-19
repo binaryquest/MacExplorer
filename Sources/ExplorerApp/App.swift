@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private lazy var globalShortcut = GlobalShortcutController(registrar: hotKeyRegistrar)
     private var settings: SettingsWindowController?
     private var about: AboutWindowController?
+    private let crashReportExporter = CrashReportExporter()
     private lazy var updates = AppUpdateController()
     var current: ExplorerWindowController? {
         (NSApp.keyWindow?.windowController as? ExplorerWindowController) ?? (NSApp.mainWindow?.windowController as? ExplorerWindowController) ?? windows.last
@@ -152,6 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         settings?.showWindow(nil); settings?.window?.makeKeyAndOrderFront(nil)
     }
     @objc func checkForUpdates(_ sender: Any?) { updates.checkForUpdates(sender) }
+    @objc func exportCrashReport() { crashReportExporter.start() }
     @objc func showAbout(_ sender: Any?) {
         if about == nil { about = AboutWindowController() }
         about?.showWindow(nil); about?.window?.makeKeyAndOrderFront(nil)
@@ -230,6 +232,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if item.action == #selector(checkForUpdates) { return updates.canCheck }
+        if item.action == #selector(exportCrashReport) { return !crashReportExporter.exporting }
         if item.action == #selector(showAbout) || item.action == #selector(showSettings) || item.action == #selector(newWindowAction) { return true }
         if NSApp.keyWindow === settings?.window || NSApp.keyWindow === about?.window { return item.action == #selector(closeTab) }
         if item.action == #selector(fileOperation), let raw = item.representedObject as? String, let action = FileAction(rawValue: raw) {
@@ -340,8 +343,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         window.addItem(.separator())
         let minimize = NSMenuItem(title: L10n.text("Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         window.addItem(minimize)
+        let help = submenu(L10n.text("Help"))
+        add(help, L10n.text("Export Crash Report…"), #selector(exportCrashReport))
         NSApp.windowsMenu = window
         NSApp.mainMenu = main
+        NSApp.helpMenu = help
     }
 }
 

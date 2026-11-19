@@ -1,4 +1,5 @@
 import AppKit
+import CoreServices
 import ExplorerCore
 import ServiceManagement
 import UniformTypeIdentifiers
@@ -81,6 +82,10 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let languageRestartNote = NSTextField(wrappingLabelWithString: L10n.text("Quit and reopen Explorer to apply the language change."))
     private let startup = NSPopUpButton(), appearance = NSPopUpButton(), viewMode = NSPopUpButton(), scope = NSPopUpButton(), shortcutAction = NSPopUpButton()
     private let terminalApplication = NSPopUpButton(), editorApplication = NSPopUpButton()
+    private let folderDefaultButton = NSButton(title: L10n.text("Set as Default…"), target: nil, action: nil)
+    private let folderDefaultStatus = NSTextField(wrappingLabelWithString: "")
+    private var changingFolderDefault = false
+    private var folderDefaultFailure: String?
 
     init(preferences: AppPreferences = .shared, shortcutController: GlobalShortcutController, updates: AppUpdateController) {
         self.preferences = preferences; self.shortcutController = shortcutController
@@ -205,13 +210,70 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         editorApplication.target = self; editorApplication.action = #selector(applicationChanged(_:)); editorApplication.tag = 1
         terminalApplication.setAccessibilityLabel(L10n.text("Preferred terminal application"))
         editorApplication.setAccessibilityLabel(L10n.text("Preferred text editor"))
-        return page(L10n.text("Open with your favorite apps"), subtitle: L10n.text("Choose the apps used by Explorer’s right-click menu."), content: [
+        folderDefaultButton.bezelStyle = .rounded
+        folderDefaultButton.target = self; folderDefaultButton.action = #selector(changeFolderDefault)
+        folderDefaultStatus.font = .systemFont(ofSize: 12); folderDefaultStatus.textColor = .secondaryLabelColor
+        let folderDefaultControls = NSStackView(views: [folderDefaultButton, NSView()])
+        return page(L10n.text("Open with your favorite apps"), subtitle: L10n.text("Choose your folder, terminal, and editor apps."), content: [
+            row(L10n.text("Default app for folders"), control: folderDefaultControls),
+            folderDefaultStatus,
+            note(L10n.text("This applies when an app opens a folder using the macOS default. Reveal in Finder still opens Finder.")),
             row(L10n.text("Terminal"), control: terminalApplication),
             note(L10n.text("Open a folder in Terminal, iTerm2, or another terminal that supports opening folders. Right-click empty space to use the current folder.")),
             row(L10n.text("Text editor"), control: editorApplication),
             note(L10n.text("Open text, code, JSON, YAML, and configuration files in your preferred editor. Unrecognized files offer Open as Text.")),
             note(L10n.text("These choices apply only to Explorer’s terminal and editor actions. Double-click and Open continue to use macOS file associations."))
         ])
+    }
+    @discardableResult private func refreshFolderDefault() -> String? {
+        let current = NSWorkspace.shared.urlForApplication(toOpen: UTType.folder)
+        let identifier = current.flatMap { Bundle(url: $0)?.bundleIdentifier }
+        let isExplorer = identifier.map { $0 == Bundle.main.bundleIdentifier } ?? false
+        folderDefaultButton.title = isExplorer ? L10n.text("Use Finder…") : L10n.text("Set as Default…")
+        folderDefaultButton.isEnabled = !changingFolderDefault && Bundle.main.bundleURL.pathExtension == "app"
+        let status = current.map {
+            L10n.text("%1$@ currently opens folders by default.", ExternalApplications.name(of: $0))
+        } ?? L10n.text("macOS did not report a default app for folders.")
+        folderDefaultStatus.stringValue = [status, folderDefaultFailure].compactMap { $0 }.joined(separator: "\n")
+        return identifier
+    }
+    @objc private func changeFolderDefault() {
+        guard !changingFolderDefault, let explorerID = Bundle.main.bundleIdentifier else { return }
+        let workspace = NSWorkspace.shared
+        let isExplorer = refreshFolderDefault() == explorerID
+        let targetID = isExplorer ? "com.apple.finder" : explorerID
+        guard let target = isExplorer ? workspace.urlForApplication(withBundleIdentifier: targetID) : Bundle.main.bundleURL else {
+            folderDefaultFailure = L10n.text("Finder is unavailable.")
+            refreshFolderDefault()
+            return
+        }
+
+        changingFolderDefault = true
+        folderDefaultFailure = nil
+        refreshFolderDefault()
+        Task {
+            defer {
+                changingFolderDefault = false
+                refreshFolderDefault()
+            }
+            do {
+                try await workspace.setDefaultApplication(at: target, toOpen: .folder)
+                if refreshFolderDefault() != targetID {
+                    folderDefaultFailure = L10n.text("macOS did not apply the change.")
+                }
+            } catch {
+                let error = error as NSError
+                let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError ?? error
+                switch (underlying.domain, underlying.code) {
+                case (NSCocoaErrorDomain, NSUserCancelledError), (NSOSStatusErrorDomain, Int(userCanceledErr)):
+                    break
+                case (NSOSStatusErrorDomain, Int(kLSUnknownTypeErr)), (NSOSStatusErrorDomain, Int(paramErr)):
+                    folderDefaultFailure = L10n.text("macOS rejected the request to change the default app for folders.")
+                default:
+                    folderDefaultFailure = L10n.text("Couldn’t change the default folder app. %1$@", error.localizedDescription)
+                }
+            }
+        }
     }
     private func refreshApplications() {
         for (role, popup) in [(ExternalApplicationRole.terminal, terminalApplication), (.editor, editorApplication)] {
@@ -284,6 +346,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         refreshLoginStatus()
         refreshUpdates()
         refreshApplications()
+        refreshFolderDefault()
     }
     private func refreshLoginStatus() {
         let state = SMAppService.mainApp.status

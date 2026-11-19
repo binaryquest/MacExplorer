@@ -2,7 +2,7 @@ import AppKit
 import ExplorerCore
 
 enum FileAction: String, CaseIterable {
-    case cut, copy, paste, move, rename, newFolder, trash, compress, extract, properties, undo, cancel
+    case cut, copy, paste, move, rename, newFolder, newFile, trash, compress, extract, properties, undo, cancel
     var title: String {
         switch self {
         case .cut: L10n.text("Cut")
@@ -11,6 +11,7 @@ enum FileAction: String, CaseIterable {
         case .move: L10n.text("Move to Folder…")
         case .rename: L10n.text("Rename…")
         case .newFolder: L10n.text("New Folder…")
+        case .newFile: L10n.text("New File…")
         case .trash: L10n.text("Move to Trash")
         case .compress: L10n.text("Compress to ZIP")
         case .extract: L10n.text("Extract All…")
@@ -150,11 +151,11 @@ final class FileOperationController {
         return ConflictResolution(choice, applyToAll: alert.suppressionButton?.state == .on)
     }
 
-    func askName(title: String, initial: String, selectStem: Bool, window: NSWindow,
+    func askName(title: String, submitTitle: String, initial: String, selectStem: Bool, window: NSWindow,
                  submit: @escaping (String) -> Void) {
         guard !busy, window.attachedSheet == nil else { return }
         let alert = NSAlert(); alert.messageText = title
-        alert.addButton(withTitle: title == L10n.text("New Folder") ? L10n.text("Create") : L10n.text("Rename")); alert.addButton(withTitle: L10n.text("Cancel"))
+        alert.addButton(withTitle: submitTitle); alert.addButton(withTitle: L10n.text("Cancel"))
         let field = NSTextField(string: initial); field.frame = NSRect(x: 0, y: 0, width: 340, height: 26)
         field.setAccessibilityLabel(L10n.text("Name")); alert.accessoryView = field; alert.window.initialFirstResponder = field
         alert.beginSheetModal(for: window) { response in

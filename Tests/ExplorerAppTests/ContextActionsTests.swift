@@ -52,6 +52,7 @@ struct ContextActionsTests {
         browser.table.deselectAll(nil)
         let menu = NSMenu(); browser.populateContextMenu(menu)
         #expect(menu.items.contains { $0.title == L10n.text("Properties") })
+        #expect(menu.items.contains { $0.title == L10n.text("New File…") && $0.isEnabled })
         #expect(!menu.items.contains { $0.title == L10n.text("Compress to ZIP") })
     }
 }

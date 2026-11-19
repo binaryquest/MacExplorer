@@ -82,6 +82,45 @@ final class FileOperationTests: XCTestCase {
         let restore = await engine.undo(); XCTAssertNil(restore.error); XCTAssertTrue(exists(folder))
         let remove = await engine.undo(); XCTAssertNil(remove.error); XCTAssertFalse(exists(folder))
     }
+    func testNewFileKeepsNamesWithAndWithoutExtensionsAndCanBeUndone() async throws {
+        let root = try fixture(), engine = engine(root)
+        for name in ["notes.txt", "README"] {
+            let result = await engine.perform(.newFile(in: root, name: name))
+            XCTAssertNil(result.error)
+            let created = try XCTUnwrap(result.completed.first)
+            XCTAssertEqual(created.lastPathComponent, name)
+            XCTAssertTrue(try Data(contentsOf: created).isEmpty)
+        }
+        let undo = await engine.undo()
+        XCTAssertNil(undo.error)
+        XCTAssertFalse(exists(root.appendingPathComponent("README")))
+        XCTAssertTrue(exists(root.appendingPathComponent("notes.txt")))
+    }
+    func testNewFileLeavesExistingFilesAndLinksUntouched() async throws {
+        let root = try fixture(), engine = engine(root)
+        let original = try file("existing.txt", in: root)
+        let link = root.appendingPathComponent("dangling.txt")
+        let missing = root.appendingPathComponent("missing.txt")
+        try fm.createSymbolicLink(at: link, withDestinationURL: missing)
+        for name in [original.lastPathComponent, link.lastPathComponent, "Source"] {
+            let result = await engine.perform(.newFile(in: root, name: name))
+            XCTAssertNotNil(result.error)
+            XCTAssertTrue(result.completed.isEmpty)
+        }
+        XCTAssertEqual(try read(original), "original")
+        XCTAssertEqual(try fm.destinationOfSymbolicLink(atPath: link.path), missing.path)
+        XCTAssertFalse(exists(missing))
+    }
+    func testNewFileLeavesAConcurrentCreationUntouched() async throws {
+        let root = try fixture(), engine = engine(root)
+        let target = root.appendingPathComponent("raced.txt")
+        let result = await engine.perform(.newFile(in: root, name: "raced.txt"), progress: { _ in
+            try? Data("created elsewhere".utf8).write(to: target)
+        })
+        XCTAssertNotNil(result.error)
+        XCTAssertTrue(result.completed.isEmpty)
+        XCTAssertEqual(try read(target), "created elsewhere")
+    }
     func testUndoRefusesModifiedOutputAndRetainsRecord() async throws {
         let root = try fixture(), engine = engine(root)
         let source = try file("Source/report.txt", in: root)

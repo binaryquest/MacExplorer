@@ -756,7 +756,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
             }
             menu.addItem(.separator())
         }
-        for action in [FileAction.move, .newFolder, .undo] {
+        for action in [FileAction.move, .newFolder, .newFile, .undo] {
             let title = action == .undo ? operations.undoTitle.map { L10n.text("Undo %1$@", $0) } ?? L10n.text("Undo") : action.title
             menu.addItem(ContextMenu.item(title, symbol: action.menuSymbol, enabled: canPerformFileAction(action)) { [weak self] in self?.performFileAction(action) })
         }
@@ -826,7 +826,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         case .extract: return canExtractSelection
         case .properties: return false
         case .rename: return selectedItems.count == 1
-        case .newFolder: return folderDestination != nil
+        case .newFolder, .newFile: return folderDestination != nil
         case .paste: return folderDestination != nil && operations.canPaste
         case .undo: return operations.undoTitle != nil
         case .cancel: return false
@@ -863,15 +863,20 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
             FileProperties.show(targets, window: window)
         case .rename:
             guard let item = selectedItems.first else { return }
-            operations.askName(title: L10n.text("Rename"), initial: item.name, selectStem: !item.isDirectory, window: window) { [weak self] name in
+            let title = L10n.text("Rename")
+            operations.askName(title: title, submitTitle: title, initial: item.name, selectStem: !item.isDirectory, window: window) { [weak self] name in
                 self?.operations.run(.rename(item.url, to: name), window: window)
             }
         case .newFolder:
             var name = L10n.text("New folder"), index = 2
             let names = Set(tab.items.map { $0.name.lowercased() })
             while names.contains(name.lowercased()) { name = L10n.text("New folder (%1$@)", index); index += 1 }
-            operations.askName(title: L10n.text("New Folder"), initial: name, selectStem: false, window: window) { [weak self] name in
+            operations.askName(title: L10n.text("New Folder"), submitTitle: L10n.text("Create"), initial: name, selectStem: false, window: window) { [weak self] name in
                 self?.operations.run(.newFolder(in: folder, name: name), window: window)
+            }
+        case .newFile:
+            operations.askName(title: L10n.text("New File"), submitTitle: L10n.text("Create"), initial: "", selectStem: false, window: window) { [weak self] name in
+                self?.operations.run(.newFile(in: folder, name: name), window: window)
             }
         case .move:
             let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true

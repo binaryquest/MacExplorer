@@ -6,6 +6,7 @@ public enum FileOperation: Sendable {
     case move([URL], to: URL)
     case rename(URL, to: String)
     case newFolder(in: URL, name: String)
+    case newFile(in: URL, name: String)
     case trash([URL])
     case color([URL], FinderColor)
     case compress([URL], to: URL)
@@ -17,6 +18,7 @@ public enum FileOperation: Sendable {
         case .move: L10n.text("Move")
         case .rename: L10n.text("Rename")
         case .newFolder: L10n.text("New Folder")
+        case .newFile: L10n.text("New File")
         case .trash: L10n.text("Trash")
         case .color: L10n.text("Change Color Label")
         case .compress: L10n.text("Compress")
@@ -124,7 +126,7 @@ public actor FileOperationEngine {
                 sources = Array(Set(urls.map { canonicalItem($0) })).sorted { $0.path < $1.path }; destinationFolder = nil
             case let .rename(url, name):
                 try Self.validateName(name); sources = [canonicalItem(url)]; destinationFolder = nil
-            case let .newFolder(parent, name):
+            case let .newFolder(parent, name), let .newFile(parent, name):
                 try Self.validateName(name); try FileSystem.validateDirectory(parent)
                 sources = [parent.resolvingSymlinksInPath().appendingPathComponent(name)]; destinationFolder = nil
             case .compress, .extract: fatalError("Handled above")
@@ -144,12 +146,19 @@ public actor FileOperationEngine {
                     record.steps.insert(.color(source, Snapshot(nodes: ["": stamp]), before: before, after: after), at: 0)
                     report.completed.append(source); continue
                 }
-                if case .newFolder = operation {
-                    // mkdir fails if a file appeared at this name; never replace it.
-                    try fm.createDirectory(at: source, withIntermediateDirectories: false)
+                switch operation {
+                case .newFolder, .newFile:
+                    // Both create operations must fail if another item takes the name.
+                    if case .newFolder = operation {
+                        try fm.createDirectory(at: source, withIntermediateDirectories: false)
+                    } else {
+                        try Data().write(to: source, options: .withoutOverwriting)
+                    }
                     let step = UndoStep.remove(source, try snapshot(source))
                     record.steps.insert(step, at: 0); report.completed.append(source)
                     continue
+                default:
+                    break
                 }
                 try protectRoot(source)
                 let original = try snapshot(source)

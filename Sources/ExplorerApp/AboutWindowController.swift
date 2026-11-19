@@ -1,11 +1,13 @@
+import ExplorerCore
 import AppKit
 
 @MainActor
 final class AboutWindowController: NSWindowController {
     init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 430),
+        let credit = L10n.current.localizationCredit
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: credit == nil ? 430 : 460),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "About Explorer"
+        window.title = L10n.text("About Explorer")
         window.isReleasedWhenClosed = false
         window.center()
         super.init(window: window)
@@ -26,35 +28,42 @@ final class AboutWindowController: NSWindowController {
 
         let icon = NSImageView(image: NSApp.applicationIconImage)
         icon.imageScaling = .scaleProportionallyUpOrDown
-        icon.setAccessibilityLabel("Explorer app icon")
+        icon.setAccessibilityLabel(L10n.text("Explorer app icon"))
         NSLayoutConstraint.activate([icon.widthAnchor.constraint(equalToConstant: 80), icon.heightAnchor.constraint(equalToConstant: 80)])
         stack.addArrangedSubview(icon)
         stack.addArrangedSubview(label("Explorer", size: 27, weight: .semibold))
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Development"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? L10n.text("Development")
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-        stack.addArrangedSubview(label("Version \(version)" + (build.map { " (\($0))" } ?? ""), size: 12, secondary: true))
-        let description = label("A native Mac file manager inspired by Windows Explorer.\nFamiliar navigation. Made for your Mac.", size: 14)
+        stack.addArrangedSubview(label(L10n.text("Version %1$@", version) + (build.map { " (\($0))" } ?? ""), size: 12, secondary: true))
+        let description = label(L10n.text("A native Mac file manager inspired by Windows Explorer.\nFamiliar navigation. Made for your Mac."), size: 14)
         description.maximumNumberOfLines = 0
         description.preferredMaxLayoutWidth = 370
         stack.addArrangedSubview(description)
         stack.setCustomSpacing(20, after: description)
 
-        let publisher = NSButton(title: "Developed by Binary Quest ↗", target: self, action: #selector(openPublisher))
+        let publisher = NSButton(title: L10n.text("Developed by Binary Quest ↗"), target: self, action: #selector(openPublisher))
         publisher.bezelStyle = .inline
         publisher.font = .systemFont(ofSize: 13, weight: .medium)
         publisher.toolTip = "www.binaryquest.com"
         stack.addArrangedSubview(publisher)
+        if let credit {
+            let button = NSButton(title: credit.title, target: self, action: #selector(openLocalizationCredit))
+            button.bezelStyle = .inline
+            button.font = .systemFont(ofSize: 13, weight: .medium)
+            button.toolTip = credit.url.absoluteString
+            stack.addArrangedSubview(button)
+        }
         let buttons = NSStackView()
         buttons.orientation = .horizontal
         buttons.spacing = 10
-        for (title, action) in [("Website", #selector(openWebsite)), ("Source Code", #selector(openSource))] {
+        for (title, action) in [(L10n.text("Website"), #selector(openWebsite)), (L10n.text("Source Code"), #selector(openSource))] {
             let button = NSButton(title: title, target: self, action: action)
             button.bezelStyle = .rounded
             buttons.addArrangedSubview(button)
         }
         stack.addArrangedSubview(buttons)
         stack.setCustomSpacing(20, after: buttons)
-        stack.addArrangedSubview(label("Free and open source · MIT license", size: 11, secondary: true))
+        stack.addArrangedSubview(label(L10n.text("Free and open source · MIT license"), size: 11, secondary: true))
         stack.addArrangedSubview(label("© Binary Quest Software Pty Ltd", size: 11, secondary: true))
     }
 
@@ -72,6 +81,9 @@ final class AboutWindowController: NSWindowController {
     @objc private func openWebsite() { open("https://explorer.bquick.io") }
     @objc private func openSource() { open("https://github.com/binaryquest/MacExplorer") }
     @objc private func openPublisher() { open("https://www.binaryquest.com") }
+    @objc private func openLocalizationCredit() {
+        if let credit = L10n.current.localizationCredit { NSWorkspace.shared.open(credit.url) }
+    }
     private func open(_ address: String) {
         if let url = URL(string: address) { NSWorkspace.shared.open(url) }
     }

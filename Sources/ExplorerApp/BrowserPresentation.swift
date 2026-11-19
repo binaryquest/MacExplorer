@@ -14,7 +14,7 @@ extension BrowserViewController: NSCollectionViewDataSource, NSCollectionViewDel
         collection.register(FileGroupHeader.self, forSupplementaryViewOfKind: NSCollectionView.elementKindSectionHeader, withIdentifier: FileGroupHeader.identifier)
         collection.dataSource = self; collection.delegate = self
         collection.autoresizingMask = [.width]
-        collection.setAccessibilityLabel("Files, icon view")
+        collection.setAccessibilityLabel(L10n.text("Files, icon view"))
         collection.registerForDraggedTypes([.fileURL])
         collection.setDraggingSourceOperationMask([.copy, .move], forLocal: true)
         collection.setDraggingSourceOperationMask(.copy, forLocal: false)
@@ -43,7 +43,7 @@ extension BrowserViewController: NSCollectionViewDataSource, NSCollectionViewDel
         collectionScroll.drawsBackground = false
     }
     func presentationMenu() -> NSMenu {
-        let menu = NSMenu(); menu.addItem(withTitle: "View", action: nil, keyEquivalent: "")
+        let menu = NSMenu(); menu.addItem(withTitle: L10n.text("View"), action: nil, keyEquivalent: "")
         for mode in FileViewMode.allCases {
             let item = NSMenuItem(title: mode.title, action: #selector(changePresentation(_:)), keyEquivalent: "")
             item.target = self; item.representedObject = mode.rawValue; menu.addItem(item)

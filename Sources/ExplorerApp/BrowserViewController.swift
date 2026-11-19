@@ -117,7 +117,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
     var suppressSelection = false
     let iconCache = NSCache<NSString, NSImage>()
     let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter(); formatter.dateStyle = .medium; formatter.timeStyle = .short; return formatter
+        let formatter = DateFormatter(); formatter.locale = L10n.locale; formatter.dateStyle = .medium; formatter.timeStyle = .short; return formatter
     }()
 
     init(urls: [URL], active: Int) {
@@ -200,7 +200,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         tabsScroll.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
         tabsScroll.horizontalScrollElasticity = .allowed; tabsScroll.verticalScrollElasticity = .none
         tabsScroll.documentView = tabsDocument
-        let add = ActionButton(symbol: "plus", tooltip: "New tab (⌘T)") { [weak self] in self?.newTab() }
+        let add = ActionButton(symbol: "plus", tooltip: L10n.text("New tab (⌘T)")) { [weak self] in self?.newTab() }
         paneBadge.font = .systemFont(ofSize: 11, weight: .semibold)
         paneBadgeWidth = paneBadge.widthAnchor.constraint(equalToConstant: 0); paneBadgeWidth?.isActive = true
         for child in [paneBadge, tabsScroll, add] { bar.addSubview(child); child.translatesAutoresizingMaskIntoConstraints = false }
@@ -227,35 +227,35 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
             let button = ActionButton(title, symbol: symbol, tooltip: tooltip) { [weak self] in self?.performFileAction(action) }
             operationButtons[action] = button; return button
         }
-        let new = button(.newFolder, "folder.badge.plus", "New folder (⇧⌘N or Ctrl+Shift+N)", title: "New")
-        let cut = button(.cut, "scissors", "Cut (⌘X or Ctrl+X)")
-        let copy = button(.copy, "doc.on.doc", "Copy (⌘C or Ctrl+C)")
-        let paste = button(.paste, "doc.on.clipboard", "Paste (⌘V or Ctrl+V)")
-        let rename = button(.rename, "pencil", "Rename (F2)")
-        let move = button(.move, "folder", "Move to folder… (⇧⌘M)")
-        let trash = button(.trash, "trash", "Move to Trash (Delete or ⌘Backspace)")
-        let undo = button(.undo, "arrow.uturn.backward", "Undo (⌘Z or Ctrl+Z)")
-        let cancel = button(.cancel, "xmark.circle", "Cancel operation or pending cut (Escape)")
-        hiddenButton = ActionButton(symbol: "eye.slash", tooltip: "Show hidden files (⇧⌘.)") { [weak self] in self?.toggleHidden() }
-        previewButton = ActionButton(symbol: "eye", tooltip: "Quick Look (Space)") { [weak self] in self?.toggleQuickLook() }
+        let new = button(.newFolder, "folder.badge.plus", L10n.text("New folder (⇧⌘N or Ctrl+Shift+N)"), title: L10n.text("New"))
+        let cut = button(.cut, "scissors", L10n.text("Cut (⌘X or Ctrl+X)"))
+        let copy = button(.copy, "doc.on.doc", L10n.text("Copy (⌘C or Ctrl+C)"))
+        let paste = button(.paste, "doc.on.clipboard", L10n.text("Paste (⌘V or Ctrl+V)"))
+        let rename = button(.rename, "pencil", L10n.text("Rename (F2)"))
+        let move = button(.move, "folder", L10n.text("Move to folder… (⇧⌘M)"))
+        let trash = button(.trash, "trash", L10n.text("Move to Trash (Delete or ⌘Backspace)"))
+        let undo = button(.undo, "arrow.uturn.backward", L10n.text("Undo (⌘Z or Ctrl+Z)"))
+        let cancel = button(.cancel, "xmark.circle", L10n.text("Cancel operation or pending cut (Escape)"))
+        hiddenButton = ActionButton(symbol: "eye.slash", tooltip: L10n.text("Show hidden files (⇧⌘.)")) { [weak self] in self?.toggleHidden() }
+        previewButton = ActionButton(symbol: "eye", tooltip: L10n.text("Quick Look (Space)")) { [weak self] in self?.toggleQuickLook() }
         viewPicker.menu = presentationMenu(); viewPicker.font = .systemFont(ofSize: 12)
-        viewPicker.setAccessibilityLabel("View options"); viewPicker.widthAnchor.constraint(equalToConstant: 86).isActive = true
+        viewPicker.setAccessibilityLabel(L10n.text("View options")); viewPicker.widthAnchor.constraint(equalToConstant: 86).isActive = true
         viewPicker.menu?.items.first?.image = Palette.buttonSymbol("list.bullet", size: 14, canvas: 18)
-        sortPicker.menu = sortingMenu(); sortPicker.setAccessibilityLabel("Sort and group options")
+        sortPicker.menu = sortingMenu(); sortPicker.setAccessibilityLabel(L10n.text("Sort and group options"))
         sortPicker.widthAnchor.constraint(equalToConstant: 88).isActive = true
         sortPicker.menu?.items.first?.image = Palette.buttonSymbol("arrow.up.arrow.down", size: 14, canvas: 18)
-        searchOptions.menu = searchOptionsMenu(); searchOptions.setAccessibilityLabel("Search options")
-        searchOptions.toolTip = "Search options: current folder, subfolders, and stop search"
+        searchOptions.menu = searchOptionsMenu(); searchOptions.setAccessibilityLabel(L10n.text("Search options"))
+        searchOptions.toolTip = L10n.text("Search options: current folder, subfolders, and stop search")
         searchOptionsWidth = searchOptions.widthAnchor.constraint(equalToConstant: 132); searchOptionsWidth?.isActive = true
-        closeSearchButton = ActionButton(symbol: "xmark", tooltip: "Close search") { [weak self] in self?.closeSearch() }
+        closeSearchButton = ActionButton(symbol: "xmark", tooltip: L10n.text("Close search")) { [weak self] in self?.closeSearch() }
         closeSearchButton.contentTintColor = .systemBlue
         closeSearchWidth = closeSearchButton.constraints.first { $0.firstAttribute == .width }
         let left = NSStackView(views: [new, separator(), cut, copy, paste, rename, move, trash, separator(), undo, cancel, separator(), sortPicker, viewPicker, searchOptions, closeSearchButton!]); left.spacing = 4
         bar.onLayout = { [weak self, weak bar] in self?.layoutSearchTools(width: bar?.bounds.width ?? 0) }
-        pinButton = ActionButton(symbol: "pin", tooltip: "Pin current folder (⌘D)") { [weak self] in self?.togglePin() }
-        dualButton = ActionButton(symbol: "rectangle.split.2x1", tooltip: "Toggle dual panes (⇧⌘D)") { [weak self] in self?.workspace?.toggleDualPane() }
-        copyOtherButton = ActionButton(symbol: "doc.on.doc.fill", tooltip: "Copy selection to other pane (⌃⇧C)") { [weak self] in self?.transferToOtherPane(move: false) }
-        moveOtherButton = ActionButton(symbol: "arrow.left.arrow.right", tooltip: "Move selection to other pane (⌃⇧M)") { [weak self] in self?.transferToOtherPane(move: true) }
+        pinButton = ActionButton(symbol: "pin", tooltip: L10n.text("Pin current folder (⌘D)")) { [weak self] in self?.togglePin() }
+        dualButton = ActionButton(symbol: "rectangle.split.2x1", tooltip: L10n.text("Toggle dual panes (⇧⌘D)")) { [weak self] in self?.workspace?.toggleDualPane() }
+        copyOtherButton = ActionButton(symbol: "doc.on.doc.fill", tooltip: L10n.text("Copy selection to other pane (⌃⇧C)")) { [weak self] in self?.transferToOtherPane(move: false) }
+        moveOtherButton = ActionButton(symbol: "arrow.left.arrow.right", tooltip: L10n.text("Move selection to other pane (⌃⇧M)")) { [weak self] in self?.transferToOtherPane(move: true) }
         copyOtherButton.isHidden = true; moveOtherButton.isHidden = true
         let right = NSStackView(views: [copyOtherButton!, moveOtherButton!, previewButton!, pinButton!, dualButton!, hiddenButton!]); right.spacing = 4
         for child in [left, right] { bar.addSubview(child); child.translatesAutoresizingMaskIntoConstraints = false }
@@ -274,10 +274,10 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
     }
     func buildNavigationBar() -> NSView {
         let bar = Surface(); bar.color = Palette.navigation; bar.border = true
-        backButton = ActionButton(symbol: "arrow.left", tooltip: "Back (⌘[ or ⌥←)") { [weak self] in self?.goBack() }
-        forwardButton = ActionButton(symbol: "arrow.right", tooltip: "Forward (⌘] or ⌥→)") { [weak self] in self?.goForward() }
-        upButton = ActionButton(symbol: "arrow.up", tooltip: "Parent folder (⌘↑ or ⌥↑)") { [weak self] in self?.goUp() }
-        let refresh = ActionButton(symbol: "arrow.clockwise", tooltip: "Refresh (⌘R or F5)") { [weak self] in self?.refresh() }
+        backButton = ActionButton(symbol: "arrow.left", tooltip: L10n.text("Back (⌘[ or ⌥←)")) { [weak self] in self?.goBack() }
+        forwardButton = ActionButton(symbol: "arrow.right", tooltip: L10n.text("Forward (⌘] or ⌥→)")) { [weak self] in self?.goForward() }
+        upButton = ActionButton(symbol: "arrow.up", tooltip: L10n.text("Parent folder (⌘↑ or ⌥↑)")) { [weak self] in self?.goUp() }
+        let refresh = ActionButton(symbol: "arrow.clockwise", tooltip: L10n.text("Refresh (⌘R or F5)")) { [weak self] in self?.refresh() }
         let buttons = NSStackView(views: [backButton, forwardButton, upButton, refresh]); buttons.spacing = 2
         search.onChange = { [weak self] in self?.searchQueryChanged() }
         search.onSubmit = { [weak self] in self?.submitSearch() }
@@ -323,11 +323,11 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         table.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
         table.autoresizingMask = [.width]
         table.target = self; table.doubleAction = #selector(doubleClick)
-        table.setAccessibilityLabel("Files in current folder")
+        table.setAccessibilityLabel(L10n.text("Files in current folder"))
         table.registerForDraggedTypes([.fileURL])
         table.setDraggingSourceOperationMask([.copy, .move], forLocal: true)
         table.setDraggingSourceOperationMask(.copy, forLocal: false)
-        for (key, title, width) in [("name", "Name", 385.0), ("modified", "Date modified", 185.0), ("kind", "Type", 140.0), ("size", "Size", 85.0), ("location", "Folder", 180.0), ("created", "Date created", 185.0)] {
+        for (key, title, width) in [("name", L10n.text("Name"), 385.0), ("modified", L10n.text("Date modified"), 185.0), ("kind", L10n.text("Type"), 140.0), ("size", L10n.text("Size"), 85.0), ("location", L10n.text("Folder"), 180.0), ("created", L10n.text("Date created"), 185.0)] {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(key))
             column.title = title; column.width = width; column.minWidth = key == "name" ? 160 : 60
             column.headerCell.font = .systemFont(ofSize: 11)
@@ -362,7 +362,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         let image = NSImageView(image: Palette.symbol("folder", size: 34) ?? NSImage()); image.contentTintColor = .tertiaryLabelColor
         emptyTitle.font = .systemFont(ofSize: 18, weight: .medium); emptyTitle.alignment = .center
         emptyDescription.font = .systemFont(ofSize: 12); emptyDescription.textColor = .secondaryLabelColor; emptyDescription.alignment = .center
-        let open = ActionButton("Choose a folder…", symbol: "folder", tooltip: "Choose a folder") { [weak self] in self?.chooseFolder() }
+        let open = ActionButton(L10n.text("Choose a folder…"), symbol: "folder", tooltip: L10n.text("Choose a folder")) { [weak self] in self?.chooseFolder() }
         emptyStack.orientation = .vertical; emptyStack.spacing = 13
         [image, emptyTitle, emptyDescription, open].forEach { emptyStack.addArrangedSubview($0) }
         emptyStack.translatesAutoresizingMaskIntoConstraints = false; area.addSubview(emptyStack)
@@ -372,8 +372,8 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
     }
 
     func title(for url: URL) -> String {
-        if BrowserLocation.isThisMac(url) { return "This Mac" }
-        if url.path == FileManager.default.homeDirectoryForCurrentUser.path { return "Home" }
+        if BrowserLocation.isThisMac(url) { return L10n.text("This Mac") }
+        if url.path == FileManager.default.homeDirectoryForCurrentUser.path { return L10n.text("Home") }
         if url.path == "/" { return "Macintosh HD" }
         return url.lastPathComponent
     }
@@ -511,12 +511,12 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         if tab.isThisMac { thisMacView.copyPath(); return }
         let paths = selectedItems.isEmpty ? [tab.history.current.path] : selectedItems.map { $0.url.path }
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(paths.joined(separator: "\n"), forType: .string)
-        status.stringValue = paths.count == 1 ? "Path copied" : "\(paths.count) paths copied"
+        status.stringValue = paths.count == 1 ? L10n.text("Path copied") : L10n.count("%lld paths copied", paths.count)
     }
     func chooseFolder() {
         guard let window = view.window else { return }
         let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false; panel.directoryURL = tab.isThisMac ? FileManager.default.homeDirectoryForCurrentUser : tab.history.current; panel.prompt = "Open folder"
+        panel.allowsMultipleSelection = false; panel.directoryURL = tab.isThisMac ? FileManager.default.homeDirectoryForCurrentUser : tab.history.current; panel.prompt = L10n.text("Open folder")
         panel.beginSheetModal(for: window) { [weak self] response in
             if response == .OK, let url = panel.url { self?.navigate(url) }
         }
@@ -595,50 +595,49 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         if let workspace, workspace.activeBrowser !== self { workspace.activeBrowser.updateTransferButtons() }
         previewButton?.isEnabled = canQuickLook
         for (action, button) in operationButtons { button.isEnabled = canPerformFileAction(action) }
-        operationButtons[.paste]?.toolTip = operations.cutPaths.isEmpty ? "Paste copies (⌘V or Ctrl+V)" : "Paste moves cut items (⌘V or Ctrl+V)"
-        operationButtons[.undo]?.toolTip = operations.undoTitle.map { "Undo \($0) (⌘Z or Ctrl+Z)" } ?? "Nothing to undo"
+        operationButtons[.paste]?.toolTip = operations.cutPaths.isEmpty ? L10n.text("Paste copies (⌘V or Ctrl+V)") : L10n.text("Paste moves cut items (⌘V or Ctrl+V)")
+        operationButtons[.undo]?.toolTip = operations.undoTitle.map { L10n.text("Undo %1$@ (⌘Z or Ctrl+Z)", $0) } ?? L10n.text("Nothing to undo")
         if operations.busy {
             progress.startAnimation(nil); status.stringValue = operations.statusText
-            detail.stringValue = "Escape to cancel"; return
+            detail.stringValue = L10n.text("Escape to cancel"); return
         }
         if tab.isThisMac {
             if StorageStore.shared.refreshing { progress.startAnimation(nil) } else { progress.stopAnimation(nil) }
-            status.stringValue = "\(thisMacView.itemCount) locations" + (thisMacView.selectedLocation == nil ? "" : " · 1 selected")
-            detail.stringValue = StorageStore.shared.refreshing ? "Updating storage…" : "This Mac"
+            status.stringValue = L10n.count("%lld locations", thisMacView.itemCount) + (thisMacView.selectedLocation == nil ? "" : L10n.text(" · 1 selected"))
+            detail.stringValue = StorageStore.shared.refreshing ? L10n.text("Updating storage…") : L10n.text("This Mac")
             return
         }
         if tab.isRecursiveSearch {
             updateSearchStatus(); return
         }
-        if tab.loading { progress.startAnimation(nil); status.stringValue = "Loading \(title(for: tab.history.current))…" }
+        if tab.loading { progress.startAnimation(nil); status.stringValue = L10n.text("Loading %1$@…", title(for: tab.history.current)) }
         else {
             progress.stopAnimation(nil)
-            let count = tab.visible.count.formatted()
             let selected = selectedItems
-            status.stringValue = "\(count) \(tab.visible.count == 1 ? "item" : "items")"
-            if !tab.query.isEmpty { status.stringValue += " matching \"\(tab.query)\"" }
+            status.stringValue = L10n.count("%lld items", tab.visible.count)
+            if !tab.query.isEmpty { status.stringValue += L10n.text(" matching \"%1$@\"", tab.query) }
             if !selected.isEmpty {
-                status.stringValue += "  ·  \(selected.count) selected"
+                status.stringValue += L10n.text("  ·  %1$@ selected", selected.count)
                 let sizes = selected.compactMap(\.size)
-                if sizes.count == selected.count { status.stringValue += "  ·  " + ByteCountFormatter.string(fromByteCount: sizes.reduce(0, +), countStyle: .file) }
+                if sizes.count == selected.count { status.stringValue += "  ·  " + L10n.byteCount(sizes.reduce(0, +)) }
             }
-            if tab.error != nil { status.stringValue = "Folder unavailable" }
+            if tab.error != nil { status.stringValue = L10n.text("Folder unavailable") }
         }
-        detail.stringValue = operations.statusText.isEmpty ? (viewMode.title + (showHidden ? " · Hidden files" : "")) : operations.statusText
+        detail.stringValue = operations.statusText.isEmpty ? (viewMode.title + (showHidden ? L10n.text(" · Hidden files") : "")) : operations.statusText
     }
     func updateEmptyState() {
         if tab.isThisMac { emptyStack.isHidden = true; return }
         emptyStack.isHidden = !tab.visible.isEmpty || tab.loading
         if let error = tab.error {
-            emptyTitle.stringValue = "This folder couldn’t be opened"
-            emptyDescription.stringValue = error + "\nChoose another folder or check its access permissions."
+            emptyTitle.stringValue = L10n.text("This folder couldn’t be opened")
+            emptyDescription.stringValue = error + L10n.text("\nChoose another folder or check its access permissions.")
         } else if tab.isRecursiveSearch {
-            emptyTitle.stringValue = tab.searchStopped ? "Search stopped" : "No matching files"
-            emptyDescription.stringValue = "Search names in this folder and its subfolders. Try a different name or clear the search."
+            emptyTitle.stringValue = tab.searchStopped ? L10n.text("Search stopped") : L10n.text("No matching files")
+            emptyDescription.stringValue = L10n.text("Search names in this folder and its subfolders. Try a different name or clear the search.")
         } else if !tab.query.isEmpty {
-            emptyTitle.stringValue = "No matching files"; emptyDescription.stringValue = "Try another name or clear the folder filter."
+            emptyTitle.stringValue = L10n.text("No matching files"); emptyDescription.stringValue = L10n.text("Try another name or clear the folder filter.")
         } else {
-            emptyTitle.stringValue = "This folder is empty"; emptyDescription.stringValue = showHidden ? "There are no items in this folder." : "There are no visible items in this folder."
+            emptyTitle.stringValue = L10n.text("This folder is empty"); emptyDescription.stringValue = showHidden ? L10n.text("There are no items in this folder.") : L10n.text("There are no visible items in this folder.")
         }
     }
 
@@ -675,7 +674,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         case "modified": cell.textField?.stringValue = item.modified.map(dateFormatter.string) ?? "—"
         case "created": cell.textField?.stringValue = item.created.map(dateFormatter.string) ?? "—"
         case "kind": cell.textField?.stringValue = item.kind
-        case "size": cell.textField?.stringValue = item.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "—"
+        case "size": cell.textField?.stringValue = item.size.map { L10n.byteCount($0) } ?? "—"
         default: break
         }
         cell.toolTip = column.identifier.rawValue == "name" ? [item.url.path, FileColors.description(item.finderColors)].filter { !$0.isEmpty }.joined(separator: "\n") : cell.textField?.stringValue
@@ -735,22 +734,22 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
             menu.addItem(ContextMenu.item(title, symbol: symbol, action: action))
         }
         if let item = items.first {
-            add("Open", item.isNavigable ? "folder" : "doc") { [weak self] in self?.contextOpen() }
+            add(L10n.text("Open"), item.isNavigable ? "folder" : "doc") { [weak self] in self?.contextOpen() }
             if items.allSatisfy({ !$0.isNavigable }) {
                 menu.addItem(OpenWithMenu.item(urls: items.map(\.url), window: view.window))
             }
             if items.count == 1, item.isNavigable {
-                add("Open in New Tab", "plus.square.on.square") { [weak self] in self?.contextNewTab() }
-                add("Open in New Window", "macwindow.badge.plus") { (NSApp.delegate as? AppDelegate)?.newWindow(urls: [item.url]) }
-                add("Open in Other Pane", "rectangle.split.2x1") { [weak self] in self?.openSelectedInOtherPane() }
+                add(L10n.text("Open in New Tab"), "plus.square.on.square") { [weak self] in self?.contextNewTab() }
+                add(L10n.text("Open in New Window"), "macwindow.badge.plus") { (NSApp.delegate as? AppDelegate)?.newWindow(urls: [item.url]) }
+                add(L10n.text("Open in Other Pane"), "rectangle.split.2x1") { [weak self] in self?.openSelectedInOtherPane() }
                 menu.addItem(.separator())
-                add(FavoriteStore.shared.favorites.contains(item.url) ? "Unpin from Favorites" : "Pin to Favorites", "pin") { [weak self] in self?.pinSelectedFolder() }
+                add(FavoriteStore.shared.favorites.contains(item.url) ? L10n.text("Unpin from Favorites") : L10n.text("Pin to Favorites"), "pin") { [weak self] in self?.pinSelectedFolder() }
             }
-            if items.count == 1, item.isPackage { add("Show Package Contents", "shippingbox") { [weak self] in self?.contextPackage() } }
-            if tab.isRecursiveSearch { add("Open Containing Folder", "folder") { [weak self] in self?.openContainingFolder() } }
-            add("Quick Look", "eye") { [weak self] in self?.contextPreview() }
+            if items.count == 1, item.isPackage { add(L10n.text("Show Package Contents"), "shippingbox") { [weak self] in self?.contextPackage() } }
+            if tab.isRecursiveSearch { add(L10n.text("Open Containing Folder"), "folder") { [weak self] in self?.openContainingFolder() } }
+            add(L10n.text("Quick Look"), "eye") { [weak self] in self?.contextPreview() }
             if let window = view.window { menu.addItem(FileColorMenu.shared.item(urls: items.map(\.url), summaries: items.map(\.finderColors), window: window)) }
-            add("Copy as Path", "link") { [weak self] in self?.contextCopy() }
+            add(L10n.text("Copy as Path"), "link") { [weak self] in self?.contextCopy() }
             menu.addItem(.separator())
             for action in [FileAction.compress] + (canExtractSelection ? [.extract] : []) {
                 menu.addItem(ContextMenu.item(action.title, symbol: action.menuSymbol, enabled: canPerformFileAction(action)) { [weak self] in self?.performFileAction(action) })
@@ -758,7 +757,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
             menu.addItem(.separator())
         }
         for action in [FileAction.move, .newFolder, .undo] {
-            let title = action == .undo ? operations.undoTitle.map { "Undo \($0)" } ?? "Undo" : action.title
+            let title = action == .undo ? operations.undoTitle.map { L10n.text("Undo %1$@", $0) } ?? L10n.text("Undo") : action.title
             menu.addItem(ContextMenu.item(title, symbol: action.menuSymbol, enabled: canPerformFileAction(action)) { [weak self] in self?.performFileAction(action) })
         }
         let terminalFolder = ExternalApplications.terminalDirectory(items: items, currentFolder: tab.history.current)
@@ -845,17 +844,17 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         case .trash: operations.run(.trash(urls), window: window)
         case .compress:
             let parent = folderDestination ?? urls[0].deletingLastPathComponent()
-            let name = urls.count == 1 ? urls[0].lastPathComponent + ".zip" : "Archive.zip"
+            let name = urls.count == 1 ? urls[0].lastPathComponent + ".zip" : L10n.text("Archive.zip")
             operations.run(.compress(urls, to: parent.appendingPathComponent(name)), window: window)
         case .extract:
             guard let archive = urls.first else { return }
             let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true
             panel.allowsMultipleSelection = false; panel.canCreateDirectories = true
-            panel.title = "Extract All"; panel.prompt = "Extract"
+            panel.title = L10n.text("Extract All"); panel.prompt = L10n.text("Extract")
             panel.directoryURL = archive.deletingLastPathComponent()
             let stem = archive.deletingPathExtension().lastPathComponent
-            let name = stem.isEmpty || stem == "." || stem == ".." ? "Archive" : stem
-            panel.message = "Choose where to create the “\(name)” folder for the extracted files."
+            let name = stem.isEmpty || stem == "." || stem == ".." ? L10n.text("Archive") : stem
+            panel.message = L10n.text("Choose where to create the “%1$@” folder for the extracted files.", name)
             panel.beginSheetModal(for: window) { [weak self] response in
                 if response == .OK, let parent = panel.url { self?.operations.run(.extract(archive, to: parent.appendingPathComponent(name)), window: window) }
             }
@@ -864,20 +863,20 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
             FileProperties.show(targets, window: window)
         case .rename:
             guard let item = selectedItems.first else { return }
-            operations.askName(title: "Rename", initial: item.name, selectStem: !item.isDirectory, window: window) { [weak self] name in
+            operations.askName(title: L10n.text("Rename"), initial: item.name, selectStem: !item.isDirectory, window: window) { [weak self] name in
                 self?.operations.run(.rename(item.url, to: name), window: window)
             }
         case .newFolder:
-            var name = "New folder", index = 2
+            var name = L10n.text("New folder"), index = 2
             let names = Set(tab.items.map { $0.name.lowercased() })
-            while names.contains(name.lowercased()) { name = "New folder (\(index))"; index += 1 }
-            operations.askName(title: "New Folder", initial: name, selectStem: false, window: window) { [weak self] name in
+            while names.contains(name.lowercased()) { name = L10n.text("New folder (%1$@)", index); index += 1 }
+            operations.askName(title: L10n.text("New Folder"), initial: name, selectStem: false, window: window) { [weak self] name in
                 self?.operations.run(.newFolder(in: folder, name: name), window: window)
             }
         case .move:
             let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true
             panel.allowsMultipleSelection = false; panel.canCreateDirectories = false
-            panel.directoryURL = folder; panel.prompt = "Move here"; panel.message = "Choose the destination for \(urls.count) selected item(s)."
+            panel.directoryURL = folder; panel.prompt = L10n.text("Move here"); panel.message = L10n.count("Choose the destination for %lld selected items.", urls.count)
             panel.beginSheetModal(for: window) { [weak self] response in
                 if response == .OK, let target = panel.url { self?.operations.run(.move(urls, to: target), window: window) }
             }

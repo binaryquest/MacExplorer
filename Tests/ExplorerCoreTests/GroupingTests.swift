@@ -14,29 +14,30 @@ final class GroupingTests: XCTestCase {
     func testGroupAndSortAreIndependentAndNoItemsAreLost() {
         let items = [file("z.pdf", size: 3), file("a.txt", size: 40), file("b.txt", size: 1), file("Folder", folder: true)]
         let groups = FileGrouping(key: .kind).sections(from: FileSort(key: .size, ascending: false).apply(to: items))
-        XCTAssertEqual(groups.map(\.title), ["Folder", "PDF file", "TXT file"])
-        XCTAssertEqual(groups.last?.items.map(\.name), ["a.txt", "b.txt"])
+        XCTAssertEqual(groups.map(\.title), [items[0].kind, items[1].kind, items[3].kind].sorted {
+            $0.localizedStandardCompare($1) == .orderedAscending
+        })
+        XCTAssertEqual(groups.first { $0.title == items[1].kind }?.items.map(\.name), ["a.txt", "b.txt"])
         XCTAssertEqual(Set(groups.flatMap(\.items).map(\.id)), Set(items.map(\.id)))
         let reversedGroups = FileGrouping(key: .kind, ascending: false).sections(from: FileSort(key: .size, ascending: false).apply(to: items))
-        XCTAssertEqual(reversedGroups.first?.title, "TXT file")
-        XCTAssertEqual(reversedGroups.first?.items.map(\.name), ["a.txt", "b.txt"])
+        XCTAssertEqual(reversedGroups, Array(groups.reversed()))
         XCTAssertEqual(FileGrouping().sections(from: items).first?.items, items)
     }
     func testDateBucketsUseCalendarBoundariesAndPlaceUnknownLast() {
         let now = date(2026, 10, 14)
         let items = [file("old", modified: date(2025, 2, 1)), file("today", modified: date(2026, 10, 14, hour: 0)), file("yesterday", modified: date(2026, 10, 13)), file("week", modified: date(2026, 10, 12)), file("lastweek", modified: date(2026, 10, 11)), file("month", modified: date(2026, 10, 2)), file("lastmonth", modified: date(2026, 9, 20)), file("year", modified: date(2026, 2, 1)), file("future", modified: date(2026, 10, 15, hour: 0)), file("unknown")]
         let groups = FileGrouping(key: .modified).sections(from: items, now: now, calendar: calendar)
-        XCTAssertEqual(groups.map(\.title), ["Future", "Today", "Yesterday", "Earlier this week", "Last week", "Earlier this month", "Last month", "Earlier this year", "A long time ago", "Unspecified"])
+        XCTAssertEqual(groups.map(\.id), ["modified:future", "modified:today", "modified:yesterday", "modified:this-week", "modified:last-week", "modified:this-month", "modified:last-month", "modified:this-year", "modified:older", "modified:unknown"])
         let ascending = FileGrouping(key: .modified, ascending: true).sections(from: items, now: now, calendar: calendar)
-        XCTAssertEqual(ascending.first?.title, "A long time ago"); XCTAssertEqual(ascending.last?.title, "Unspecified")
+        XCTAssertEqual(ascending.first?.id, "modified:older"); XCTAssertEqual(ascending.last?.id, "modified:unknown")
     }
     func testDateBucketsAcrossNewYearAndDaylightSaving() {
         let yearBoundary = FileGrouping(key: .modified).sections(from: [file("last-year", modified: date(2025, 12, 31))], now: date(2026, 1, 1), calendar: calendar)
-        XCTAssertEqual(yearBoundary.first?.title, "Yesterday")
+        XCTAssertEqual(yearBoundary.first?.id, "modified:yesterday")
         var local = calendar; local.timeZone = TimeZone(identifier: "America/New_York")!
         let now = local.date(from: DateComponents(year: 2026, month: 3, day: 9, hour: 1))!
         let yesterday = local.date(from: DateComponents(year: 2026, month: 3, day: 8, hour: 0))!
-        XCTAssertEqual(FileGrouping(key: .modified).sections(from: [file("dst", modified: yesterday)], now: now, calendar: local).first?.title, "Yesterday")
+        XCTAssertEqual(FileGrouping(key: .modified).sections(from: [file("dst", modified: yesterday)], now: now, calendar: local).first?.id, "modified:yesterday")
     }
     func testCreatedDateIsSeparateFromModificationAndCanSort() {
         let first = file("first", modified: date(2026, 10, 14), created: date(2026, 10, 13))
@@ -46,7 +47,7 @@ final class GroupingTests: XCTestCase {
     }
     func testNameBucketsAndHiddenFilter() {
         let items = [file("99.txt"), file("éclair.txt"), file("notes.txt"), file("zebra.txt"), file("বাংলা.txt")]
-        XCTAssertEqual(FileGrouping(key: .name).sections(from: items).map(\.title), ["0–9", "A–H", "I–P", "Q–Z", "Other"])
+        XCTAssertEqual(FileGrouping(key: .name).sections(from: items).map(\.id), ["name:digits", "name:a-h", "name:i-p", "name:q-z", "name:other"])
         let hidden = FileItem(url: URL(fileURLWithPath: "/fixture/.secret"), name: ".secret", isDirectory: false, isHidden: true)
         let groups = FileGrouping(key: .kind).sections(from: FileSort().apply(to: items + [hidden], query: "notes"))
         XCTAssertEqual(groups.flatMap(\.items).map(\.name), ["notes.txt"])
@@ -55,7 +56,7 @@ final class GroupingTests: XCTestCase {
         let items = [file("folder", folder: true), file("empty", size: 0), file("tiny", size: 16_384), file("small", size: 16_385), file("medium", size: 1_048_577), file("large", size: 134_217_729), file("huge", size: 1_073_741_825), file("gigantic", size: 4_294_967_297), file("unknown", size: nil)]
         let groups = FileGrouping(key: .size).sections(from: items)
         XCTAssertEqual(groups.count, 9); XCTAssertEqual(groups.flatMap(\.items), items)
-        XCTAssertEqual(groups.first?.title, "Folders"); XCTAssertEqual(groups.last?.title, "Unspecified")
+        XCTAssertEqual(groups.first?.id, "size:folders"); XCTAssertEqual(groups.last?.id, "size:unknown")
     }
     func testDisplayMappingExcludesHeadersAndCollapsedFiles() {
         let groups = [FileGroup(id: "a", title: "A", items: [file("a"), file("b")]), FileGroup(id: "b", title: "B", items: [file("c"), file("d")])]

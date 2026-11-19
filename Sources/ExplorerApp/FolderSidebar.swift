@@ -11,7 +11,7 @@ final class FolderNode: NSObject {
     var finderColors = FinderColorSummary()
     var children: [FolderNode]?
     var loading: Task<[FileItem], Error>?
-    lazy var placeholder = FolderNode(title: "Loading…", url: nil, symbol: "", section: false, children: [])
+    lazy var placeholder = FolderNode(title: L10n.text("Loading…"), url: nil, symbol: "", section: false, children: [])
     init(title: String, url: URL?, symbol: String = "folder", section: Bool = false, children: [FolderNode]? = nil) {
         self.title = title; self.url = url; self.symbol = symbol; self.section = section; self.children = children
     }
@@ -49,7 +49,7 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
         outline.registerForDraggedTypes([.fileURL])
         outline.setDraggingSourceOperationMask([.copy, .move], forLocal: true)
         outline.setDraggingSourceOperationMask(.copy, forLocal: false)
-        outline.setAccessibilityLabel("Folder tree")
+        outline.setAccessibilityLabel(L10n.text("Folder tree"))
         let menu = NSMenu(); menu.delegate = self; outline.menu = menu
         scroll.documentView = outline
         scroll.translatesAutoresizingMaskIntoConstraints = false; view.addSubview(scroll)
@@ -77,7 +77,7 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
     func rebuild() {
         generation = UUID(); syncTask?.cancel()
         let pins = FavoriteStore.shared.favorites.items.map { favorite in
-            let node = FolderNode(title: favorite.name, url: favorite.url, symbol: favoriteSymbol(favorite.url))
+            let node = FolderNode(title: favoriteTitle(favorite), url: favorite.url, symbol: favoriteSymbol(favorite.url))
             node.favoriteID = favorite.id; return node
         }
         let locations = StorageStore.shared.locations
@@ -90,9 +90,9 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
         let networks = locations.filter(\.isNetworkLocation).map {
             FolderNode(title: $0.title, url: $0.url, symbol: $0.kind == .network ? "network" : "cloud.fill")
         }
-        roots = [FolderNode(title: "Favorites", url: nil, section: true, children: pins),
-                 FolderNode(title: "This Mac", url: BrowserLocation.thisMac, symbol: "desktopcomputer", children: devices)]
-        if !networks.isEmpty { roots.append(FolderNode(title: "Network locations", url: nil, section: true, children: networks)) }
+        roots = [FolderNode(title: L10n.text("Favorites"), url: nil, section: true, children: pins),
+                 FolderNode(title: L10n.text("This Mac"), url: BrowserLocation.thisMac, symbol: "desktopcomputer", children: devices)]
+        if !networks.isEmpty { roots.append(FolderNode(title: L10n.text("Network locations"), url: nil, section: true, children: networks)) }
         syncing = true; outline.reloadData(); roots.forEach { outline.expandItem($0) }; syncing = false
         let colorGeneration = generation
         let colorNodes = roots.flatMap { $0.children ?? [] }.filter { $0.url?.isFileURL == true }
@@ -166,7 +166,7 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
         do { children = try await node.loading!.value }
         catch {
             guard self.generation == generation else { return }
-            node.children = [FolderNode(title: "Cannot read folder", url: nil, symbol: "lock", children: [])]
+            node.children = [FolderNode(title: L10n.text("Cannot read folder"), url: nil, symbol: "lock", children: [])]
             node.loading = nil; outline.reloadItem(node, reloadChildren: true); return
         }
         guard self.generation == generation, node.children == nil else { return }
@@ -176,6 +176,16 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
         }
         node.loading = nil
         syncing = true; outline.reloadItem(node, reloadChildren: true); syncing = false
+    }
+
+    private func favoriteTitle(_ favorite: Favorite) -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        if favorite.url == home && favorite.name == "Home" { return L10n.text("Home") }
+        if favorite.url == home.appendingPathComponent(favorite.name),
+           ["Desktop", "Downloads", "Documents", "Pictures"].contains(favorite.name) {
+            return L10n.text(favorite.name)
+        }
+        return favorite.name
     }
 
     private func favoriteSymbol(_ url: URL) -> String {
@@ -256,26 +266,26 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
             item.target = self; item.representedObject = value; item.isEnabled = enabled
             item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title); menu.addItem(item)
         }
-        add("Open in New Tab", #selector(openNodeInTab(_:)), value: url)
-        add("Open in Other Pane", #selector(openNodeInOtherPane(_:)), value: url)
+        add(L10n.text("Open in New Tab"), #selector(openNodeInTab(_:)), value: url)
+        add(L10n.text("Open in Other Pane"), #selector(openNodeInOtherPane(_:)), value: url)
         guard url.isFileURL else { return }
-        menu.addItem(ContextMenu.item("Open in New Window", symbol: "macwindow.badge.plus") { (NSApp.delegate as? AppDelegate)?.newWindow(urls: [url]) })
+        menu.addItem(ContextMenu.item(L10n.text("Open in New Window"), symbol: "macwindow.badge.plus") { (NSApp.delegate as? AppDelegate)?.newWindow(urls: [url]) })
         if let window = view.window { menu.addItem(FileColorMenu.shared.item(urls: [url], summaries: [node.finderColors], window: window)) }
         menu.addItem(.separator())
-        add(FavoriteStore.shared.favorites.contains(url) ? "Unpin from Favorites" : "Pin to Favorites", #selector(pinNode(_:)), value: url, symbol: "pin")
-        menu.addItem(ContextMenu.item("Copy as Path", symbol: "link") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(url.path, forType: .string) })
+        add(FavoriteStore.shared.favorites.contains(url) ? L10n.text("Unpin from Favorites") : L10n.text("Pin to Favorites"), #selector(pinNode(_:)), value: url, symbol: "pin")
+        menu.addItem(ContextMenu.item(L10n.text("Copy as Path"), symbol: "link") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(url.path, forType: .string) })
         menu.addItem(.separator())
         menu.addItem(ExternalApplications.terminalItem(folder: url, window: view.window))
         menu.addItem(.separator())
-        menu.addItem(ContextMenu.item("Compress to ZIP", symbol: "doc.zipper", enabled: !FileOperationController.shared.busy) { [weak self] in
+        menu.addItem(ContextMenu.item(L10n.text("Compress to ZIP"), symbol: "doc.zipper", enabled: !FileOperationController.shared.busy) { [weak self] in
             guard let window = self?.view.window else { return }
             FileOperationController.shared.run(.compress([url], to: url.deletingLastPathComponent().appendingPathComponent(url.lastPathComponent + ".zip")), window: window)
         })
         menu.addItem(FileProperties.item(urls: [url], window: view.window))
         if let id = node.favoriteID, let index = FavoriteStore.shared.favorites.items.firstIndex(where: { $0.id == id }) {
             menu.addItem(.separator())
-            add("Move Favorite Up", #selector(favoriteUp(_:)), value: id, enabled: index > 0)
-            add("Move Favorite Down", #selector(favoriteDown(_:)), value: id, enabled: index + 1 < FavoriteStore.shared.favorites.items.count)
+            add(L10n.text("Move Favorite Up"), #selector(favoriteUp(_:)), value: id, enabled: index > 0)
+            add(L10n.text("Move Favorite Down"), #selector(favoriteDown(_:)), value: id, enabled: index + 1 < FavoriteStore.shared.favorites.items.count)
         }
     }
     @objc private func pinNode(_ sender: NSMenuItem) { if let url = sender.representedObject as? URL { FavoriteStore.shared.toggle(url) } }

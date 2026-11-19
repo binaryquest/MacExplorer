@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>%lld items</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>few</key>
+			<string>%lld elementy</string>
+			<key>many</key>
+			<string>%lld elementów</string>
+			<key>one</key>
+			<string>%lld element</string>
+			<key>other</key>
+			<string>Liczba elementów: %lld</string>
+		</dict>
+	</dict>
+	<key>%lld locations</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>few</key>
+			<string>%lld lokalizacje</string>
+			<key>many</key>
+			<string>%lld lokalizacji</string>
+			<key>one</key>
+			<string>%lld lokalizacja</string>
+			<key>other</key>
+			<string>Liczba lokalizacji: %lld</string>
+		</dict>
+	</dict>
+	<key>%lld paths copied</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>few</key>
+			<string>Skopiowano %lld ścieżki</string>
+			<key>many</key>
+			<string>Skopiowano %lld ścieżek</string>
+			<key>one</key>
+			<string>Skopiowano %lld ścieżkę</string>
+			<key>other</key>
+			<string>Skopiowane ścieżki: %lld</string>
+		</dict>
+	</dict>
+	<key>%lld results</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>few</key>
+			<string>%lld wyniki</string>
+			<key>many</key>
+			<string>%lld wyników</string>
+			<key>one</key>
+			<string>%lld wynik</string>
+			<key>other</key>
+			<string>Liczba wyników: %lld</string>
+		</dict>
+	</dict>
+	<key>Choose the destination for %lld selected items.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>other</key>
+			<string>Wybierz miejsce docelowe zaznaczenia (%lld).</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

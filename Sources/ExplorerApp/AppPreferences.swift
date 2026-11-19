@@ -5,17 +5,23 @@ enum StartupLocation: String, CaseIterable {
     case restore, thisMac, home, downloads
     var title: String {
         switch self {
-        case .restore: "Restore previous tabs"
-        case .thisMac: "This Mac"
-        case .home: "Home"
-        case .downloads: "Downloads"
+        case .restore: L10n.text("Restore previous tabs")
+        case .thisMac: L10n.text("This Mac")
+        case .home: L10n.text("Home")
+        case .downloads: L10n.text("Downloads")
         }
     }
 }
 
 enum AppAppearance: String, CaseIterable {
     case system, light, dark
-    var title: String { rawValue.capitalized }
+    var title: String {
+        switch self {
+        case .system: L10n.text("System")
+        case .light: L10n.text("Light")
+        case .dark: L10n.text("Dark")
+        }
+    }
     var appearance: NSAppearance? {
         switch self {
         case .system: nil
@@ -50,6 +56,11 @@ final class AppPreferences {
     var shortcutOpensNewWindow: Bool {
         get { defaults.bool(forKey: "explorer.shortcut.newWindow") }
         set { set(newValue, for: "explorer.shortcut.newWindow") }
+    }
+    var interfaceLanguage: InterfaceLanguage? {
+        get { InterfaceLanguage.manualSelection(defaults.string(forKey: InterfaceLanguage.preferenceKey)) }
+        // The running interface keeps using the launch-time language.
+        set { defaults.set(newValue?.identifier, forKey: InterfaceLanguage.preferenceKey) }
     }
     var startupLocation: StartupLocation {
         get { StartupLocation(rawValue: defaults.string(forKey: "explorer.startup") ?? "") ?? .restore }

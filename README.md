@@ -4,6 +4,8 @@
 
 # MacExplorer
 
+MacExplorer was developed by [Sazzad Hossain](https://github.com/djad442) at Binary Quest. [andyzoer](https://github.com/andyzoer) contributed the multilingual interface and support for external language packs.
+
 A native macOS file manager for people who like Windows Explorer.
 
 MacExplorer brings familiar tabs, a folder tree, drive overviews, and keyboard shortcuts to the Mac, with native Quick Look, thumbnails, and Finder color tags. Built with Swift and AppKit, with Sparkle for signed software updates.
@@ -14,7 +16,24 @@ MacExplorer brings familiar tabs, a folder tree, drive overviews, and keyboard s
 
 [Download Explorer for Mac](https://explorer.bquick.io/#download) · [Release notes and checksums](https://github.com/binaryquest/MacExplorer/releases/latest)
 
-Open the DMG and drag **Explorer** into **Applications**. The app is Developer ID signed and notarized by Apple, with one universal download for Apple Silicon and Intel. Future updates are available through **Explorer → Check for Updates…**; automatic update preferences are in **Settings → Updates**.
+Open the DMG and drag **Explorer** into **Applications**. The app is Developer ID signed and notarized by Apple, with one universal download for Apple Silicon and Intel. Future updates are available through **Explorer → Check for Updates…**. Automatic update preferences are in **Settings → Updates**.
+
+## Languages
+
+English is built in. Install additional packs or create your own using the [translation guide](docs/LOCALIZATION.md) and the [translator notes](Localizations/TRANSLATING.txt). You can add or edit a pack without rebuilding Explorer. Missing entries appear in English.
+
+### Supported languages
+
+- **Built in:** English.
+- **External packs:** Albanian, Arabic, Armenian, Azerbaijani, Bengali, Bulgarian, Chinese (Simplified), Chinese (Traditional), Croatian, Czech, Danish, Dutch, Estonian, Finnish, French, Georgian, German, Greek, Hebrew, Hindi, Hungarian, Indonesian, Irish, Italian, Japanese, Korean, Latvian, Lithuanian, Norwegian (Bokmål), Polish, Portuguese, Romanian, Serbian (Cyrillic), Slovak, Slovenian, Spanish, Swedish, Thai, Turkish, Ukrainian, Urdu, and Vietnamese.
+
+The language packs use machine translation with some manual edits. Translations may be inaccurate or inconsistent. Contributions from fluent speakers are welcome.
+
+### Installing and choosing a language
+
+If your DMG includes language packs, run **Install Explorer.command** to install the app and add the packs. You can also use **Settings → General → Install Language Packs…** to import a `.lproj` folder or a folder containing packs. Explorer asks for confirmation before replacing installed packs.
+
+Under **Settings → General → Interface language**, leave **Automatic (macOS)** selected to follow your primary system language, or choose a language and click **Apply and Restart**.
 
 ![This Mac with drives, storage usage bars, and cloud locations](docs/images/this-mac.png)
 
@@ -51,9 +70,11 @@ zsh scripts/build.sh
 open build/Explorer.app
 ```
 
-The build script creates `build/Explorer.app`, generates its icon, embeds Sparkle, and applies a local ad-hoc signature. Automatic updates are disabled in source builds; use the signed download above for automatic updates.
+The build script creates `build/Explorer.app`, generates its icon, embeds Sparkle, and applies a local ad-hoc signature. Automatic updates are disabled in source builds.
 
 The app appears as **Explorer** in macOS. Open **Explorer → Settings…** to change the global shortcut, appearance, startup behavior, and browsing defaults. The global shortcut works while Explorer is running, including when its last window is closed; it can be changed or disabled if it conflicts with another app.
+
+The build keeps a **Localizations** folder beside `build/Explorer.app`, where Explorer can discover the packs. To keep using the packs after moving the app to **Applications**, install them from **Settings → General → Install Language Packs…**. See [Install or update a translation](docs/LOCALIZATION.md).
 
 In **Settings → Applications**, choose your terminal and text editor. The defaults are macOS Terminal and TextEdit; installed alternatives such as iTerm2, Warp, Visual Studio Code, Sublime Text, and Zed appear automatically. **Choose Application…** lets you select another app. A custom terminal must accept folder URLs through macOS’s standard Open mechanism.
 

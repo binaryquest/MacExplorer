@@ -43,7 +43,7 @@ final class StorageStore {
             let paths = Set(urls.map(\.path)); self.volumes = self.volumes.filter { paths.contains($0.key) }
             // Show all mounted drives immediately, then fill each capacity independently.
             for url in urls {
-                if self.volumes[url.path] == nil { self.volumes[url.path] = StorageLocation(url: url, title: url.path == "/" ? "Macintosh HD" : url.lastPathComponent, detail: "Reading storage…", kind: url.path == "/" ? .internalDrive : .externalDrive) }
+                if self.volumes[url.path] == nil { self.volumes[url.path] = StorageLocation(url: url, title: url.path == "/" ? "Macintosh HD" : url.lastPathComponent, detail: L10n.text("Reading storage…"), kind: url.path == "/" ? .internalDrive : .externalDrive) }
                 self.pending += 1
                 self.tasks.append(Task { [weak self] in
                     let location = await Task.detached(priority: .utility) { StorageDiscovery.volume(url) }.value

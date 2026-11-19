@@ -34,7 +34,7 @@ public enum FolderPath {
     public static func resolve(_ text: String, relativeTo current: URL) -> URL? {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
-        if text.caseInsensitiveCompare("This Mac") == .orderedSame || text == BrowserLocation.thisMac.absoluteString { return BrowserLocation.thisMac }
+        if isThisMac(text) { return BrowserLocation.thisMac }
         if text.hasPrefix("file://") {
             guard let url = URL(string: text), url.isFileURL else { return nil }
             return url.standardizedFileURL
@@ -45,11 +45,17 @@ public enum FolderPath {
         return base.appendingPathComponent(path, isDirectory: true).standardizedFileURL
     }
 
+    private static func isThisMac(_ text: String) -> Bool {
+        text.caseInsensitiveCompare("This Mac") == .orderedSame
+            || text.caseInsensitiveCompare(L10n.text("This Mac")) == .orderedSame
+            || text == BrowserLocation.thisMac.absoluteString
+    }
+
     /// Folder completions for a partially typed path, as Windows Explorer's address bar offers them.
     /// Each suggestion keeps the text the user typed up to the last "/" and appends a matching folder name,
     /// so "~/Doc" suggests "~/Documents". A dot prefix opts in to dot-prefixed folders.
     public static func suggestions(for text: String, relativeTo current: URL, limit: Int = 200, fileManager: FileManager = .default) -> [String] {
-        guard !text.isEmpty, !text.hasPrefix("file://"), text.caseInsensitiveCompare("This Mac") != .orderedSame else {
+        guard !text.isEmpty, !text.hasPrefix("file://"), !isThisMac(text) else {
             return []
         }
         let head: String

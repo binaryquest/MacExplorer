@@ -1,3 +1,4 @@
+import ExplorerCore
 import AppKit
 
 @MainActor
@@ -29,11 +30,11 @@ enum ContextMenu {
         // disabled states, and menu tracking while matching Explorer's action row.
         let palette = NSMenu(); palette.autoenablesItems = false; palette.presentationStyle = .palette
         for action in [FileAction.cut, .copy, .paste, .rename, .trash] {
-            let item = item(action == .rename ? "Rename" : action.title, symbol: action.menuSymbol, enabled: enabled(action)) { perform(action) }
+            let item = item(action == .rename ? L10n.text("Rename") : action.title, symbol: action.menuSymbol, enabled: enabled(action)) { perform(action) }
             item.toolTip = action.title
             palette.addItem(item)
         }
-        let row = NSMenuItem(title: "File Actions", action: nil, keyEquivalent: ""); row.submenu = palette
+        let row = NSMenuItem(title: L10n.text("File Actions"), action: nil, keyEquivalent: ""); row.submenu = palette
         menu.addItem(row); menu.addItem(.separator())
     }
 }

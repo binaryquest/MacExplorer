@@ -1,0 +1,19 @@
+EXPLORER · ADD A TRANSLATION
+
+1. In a writable folder, create a directory named for the language code,
+   such as it.lproj or pt-BR.lproj. Use the disk image for examples.
+2. Save a UTF-8 plain-text file named Localizable.strings inside it.
+   Example: "Settings…" = "Impostazioni…";
+   Keep the English key on the left. Translate the value on the right.
+3. Find the English keys in Explorer.app → Show Package Contents →
+   Contents/Resources/en.lproj/Localizable.strings. For counts, also see
+   Localizable.stringsdict in English or another language pack.
+4. Run Open Language Packs Folder.command from the disk image and copy
+   in your .lproj folder. Relaunch Explorer and select the language in Settings.
+
+Partial translations work. Missing entries appear in English.
+Preserve placeholders such as %1$@, %2$@ and %lld, and line breaks such as \n.
+In a formatted string, write a literal percent sign as %%.
+Use plutil -lint with the path to Localizable.strings to check the syntax.
+For plural inflection, copy an existing Localizable.stringsdict structure.
+Keep the count variable, the lld type, and the required other form.

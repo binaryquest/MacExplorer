@@ -96,6 +96,7 @@
 "Copy" = "Copy";
 "Copy (⌘C or Ctrl+C)" = "Copy (⌘C or Ctrl+C)";
 "Copy Path" = "Copy Path";
+"Copy Current Folder Path" = "Copy Current Folder Path";
 "Copy as Path" = "Copy as Path";
 "Copy selection to other pane (⌃⇧C)" = "Copy selection to other pane (⌃⇧C)";
 "Copy to Other Pane" = "Copy to Other Pane";
@@ -447,3 +448,9 @@
 "Set as Default…" = "Set as Default…";
 "This applies when an app opens a folder using the macOS default. Reveal in Finder still opens Finder." = "This applies when an app opens a folder using the macOS default. Reveal in Finder still opens Finder.";
 "Use Finder…" = "Use Finder…";
+"Common Folders" = "Common Folders";
+"Music" = "Music";
+"Movies" = "Movies";
+"AirDrop" = "AirDrop";
+"Show System Files" = "Show System Files";
+"Show System Files (⇧⌘.)" = "Show System Files (⇧⌘.)";

@@ -12,7 +12,7 @@ public struct StorageCapacity: Equatable, Sendable {
 }
 
 public struct StorageLocation: Identifiable, Equatable, Sendable {
-    public enum Kind: String, Sendable { case internalDrive, externalDrive, network, googleDrive, cloud }
+    public enum Kind: String, Sendable { case folder, internalDrive, externalDrive, network, googleDrive, cloud }
     public var id: String { url.path }
     public let url: URL
     public var title: String
@@ -35,6 +35,7 @@ public enum StorageDiscovery {
         return ([URL(fileURLWithPath: "/")] + urls).filter { url in
             guard url.isFileURL else { return false }
             let path = url.standardizedFileURL.path
+            guard !["/dev", "/home", "/net", "/private", "/var", "/System"].contains(path) else { return false }
             guard path == "/" || (!path.hasPrefix("/System/") && !path.hasPrefix("/private/") && !path.hasPrefix("/var/") && !path.hasPrefix("/dev/") && !path.split(separator: "/").contains(where: { $0.hasPrefix(".") })) else { return false }
             return seen.insert(path).inserted
         }

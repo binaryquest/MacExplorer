@@ -75,6 +75,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
     var searchOptionsWidth: NSLayoutConstraint?
     var closeSearchWidth: NSLayoutConstraint?
     var pinButton: ActionButton!
+    var previewSidebarButton: ActionButton?
     var dualButton: ActionButton!
     var copyOtherButton: ActionButton!
     var moveOtherButton: ActionButton!
@@ -165,7 +166,10 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
             child.leadingAnchor.constraint(equalTo: view.leadingAnchor).isActive = true
             child.trailingAnchor.constraint(equalTo: view.trailingAnchor).isActive = true
         }
-        pathBar.onNavigate = { [weak self] in self?.navigate($0) }
+        pathBar.onCopyFolderPath = { [weak self] in
+            guard let self, !self.tab.isThisMac else { return }
+            self.copyPaths([self.tab.history.current.path])
+        }
         pathBar.onCommit = { [weak self] text in
             guard let self, let url = FolderPath.resolve(text, relativeTo: self.tab.history.current) else { return }
             self.navigate(url); self.view.window?.makeFirstResponder(self.activeFileView)
@@ -236,7 +240,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         let trash = button(.trash, "trash", L10n.text("Move to Trash (Delete or ⌘Backspace)"))
         let undo = button(.undo, "arrow.uturn.backward", L10n.text("Undo (⌘Z or Ctrl+Z)"))
         let cancel = button(.cancel, "xmark.circle", L10n.text("Cancel operation or pending cut (Escape)"))
-        hiddenButton = ActionButton(symbol: "eye.slash", tooltip: L10n.text("Show hidden files (⇧⌘.)")) { [weak self] in self?.toggleHidden() }
+        hiddenButton = ActionButton(symbol: "eye.slash", tooltip: L10n.text("Show System Files (⇧⌘.)")) { [weak self] in self?.toggleHidden() }
         previewButton = ActionButton(symbol: "eye", tooltip: L10n.text("Quick Look (Space)")) { [weak self] in self?.toggleQuickLook() }
         viewPicker.menu = presentationMenu(); viewPicker.font = .systemFont(ofSize: 12)
         viewPicker.setAccessibilityLabel(L10n.text("View options")); viewPicker.widthAnchor.constraint(equalToConstant: 86).isActive = true
@@ -253,11 +257,12 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         let left = NSStackView(views: [new, separator(), cut, copy, paste, rename, move, trash, separator(), undo, cancel, separator(), sortPicker, viewPicker, searchOptions, closeSearchButton!]); left.spacing = 4
         bar.onLayout = { [weak self, weak bar] in self?.layoutSearchTools(width: bar?.bounds.width ?? 0) }
         pinButton = ActionButton(symbol: "pin", tooltip: L10n.text("Pin current folder (⌘D)")) { [weak self] in self?.togglePin() }
+        previewSidebarButton = ActionButton(symbol: "sidebar.right", tooltip: "显示或隐藏预览栏（⇧⌘P）") { [weak self] in self?.workspace?.togglePreview() }
         dualButton = ActionButton(symbol: "rectangle.split.2x1", tooltip: L10n.text("Toggle dual panes (⇧⌘D)")) { [weak self] in self?.workspace?.toggleDualPane() }
         copyOtherButton = ActionButton(symbol: "doc.on.doc.fill", tooltip: L10n.text("Copy selection to other pane (⌃⇧C)")) { [weak self] in self?.transferToOtherPane(move: false) }
         moveOtherButton = ActionButton(symbol: "arrow.left.arrow.right", tooltip: L10n.text("Move selection to other pane (⌃⇧M)")) { [weak self] in self?.transferToOtherPane(move: true) }
         copyOtherButton.isHidden = true; moveOtherButton.isHidden = true
-        let right = NSStackView(views: [copyOtherButton!, moveOtherButton!, previewButton!, pinButton!, dualButton!, hiddenButton!]); right.spacing = 4
+        let right = NSStackView(views: [copyOtherButton!, moveOtherButton!, previewButton!, pinButton!, dualButton!, previewSidebarButton!, hiddenButton!]); right.spacing = 4
         for child in [left, right] { bar.addSubview(child); child.translatesAutoresizingMaskIntoConstraints = false }
         NSLayoutConstraint.activate([
             left.leadingAnchor.constraint(equalTo: bar.leadingAnchor, constant: 14), left.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
@@ -333,7 +338,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
             column.headerCell.font = .systemFont(ofSize: 11)
             if key != "location" { column.sortDescriptorPrototype = NSSortDescriptor(key: key, ascending: true) }
             column.isHidden = key == "location" || key == "created"
-            if key == "size" { column.headerCell.alignment = .right }
+            if key == "size" { column.headerCell.alignment = .left }
             table.addTableColumn(column)
         }
         // Set the restored order before installing the delegate: initialization
@@ -509,7 +514,10 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
     }
     func copySelectedPaths() {
         if tab.isThisMac { thisMacView.copyPath(); return }
-        let paths = selectedItems.isEmpty ? [tab.history.current.path] : selectedItems.map { $0.url.path }
+        let items = selectedItems
+        copyPaths(items.isEmpty ? [tab.history.current.path] : items.map { $0.url.path })
+    }
+    private func copyPaths(_ paths: [String]) {
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(paths.joined(separator: "\n"), forType: .string)
         status.stringValue = paths.count == 1 ? L10n.text("Path copied") : L10n.count("%lld paths copied", paths.count)
     }
@@ -592,6 +600,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
         }
     }
     func updateStatus() {
+        workspace?.refreshPreview(from: self)
         updateSearchMenuState()
         updateTransferButtons()
         if let workspace, workspace.activeBrowser !== self { workspace.activeBrowser.updateTransferButtons() }
@@ -697,7 +706,7 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
             NSLayoutConstraint.activate([icon.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 12), icon.centerYAnchor.constraint(equalTo: cell.centerYAnchor), icon.widthAnchor.constraint(equalToConstant: 18), icon.heightAnchor.constraint(equalToConstant: 18)])
             leading = icon.trailingAnchor
         }
-        if identifier.rawValue == "size" { label.alignment = .right }
+        if identifier.rawValue == "size" { label.alignment = .left }
         NSLayoutConstraint.activate([label.leadingAnchor.constraint(equalTo: leading, constant: 9), label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -12), label.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
         return cell
     }
@@ -734,10 +743,14 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
     func populateContextMenu(_ menu: NSMenu) {
         ContextMenu.configure(menu)
         let items = selectedItems
-        ContextMenu.addFileActions(to: menu, enabled: canPerformFileAction) { [weak self] in self?.performFileAction($0) }
         func add(_ title: String, _ symbol: String, _ action: @escaping () -> Void) {
             menu.addItem(ContextMenu.item(title, symbol: symbol, action: action))
         }
+        add(L10n.text(items.isEmpty ? "Copy Current Folder Path" : "Copy Path"), "doc.on.doc") { [weak self] in
+            self?.copySelectedPaths()
+        }
+        menu.addItem(.separator())
+        ContextMenu.addFileActions(to: menu, enabled: canPerformFileAction) { [weak self] in self?.performFileAction($0) }
         if let item = items.first {
             add(L10n.text("Open"), item.isNavigable ? "folder" : "doc") { [weak self] in self?.contextOpen() }
             if items.allSatisfy({ !$0.isNavigable }) {
@@ -754,7 +767,6 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
             if tab.isRecursiveSearch { add(L10n.text("Open Containing Folder"), "folder") { [weak self] in self?.openContainingFolder() } }
             add(L10n.text("Quick Look"), "eye") { [weak self] in self?.contextPreview() }
             if let window = view.window { menu.addItem(FileColorMenu.shared.item(urls: items.map(\.url), summaries: items.map(\.finderColors), window: window)) }
-            add(L10n.text("Copy as Path"), "link") { [weak self] in self?.contextCopy() }
             menu.addItem(.separator())
             for action in [FileAction.compress] + (canExtractSelection ? [.extract] : []) {
                 menu.addItem(ContextMenu.item(action.title, symbol: action.menuSymbol, enabled: canPerformFileAction(action)) { [weak self] in self?.performFileAction(action) })
@@ -924,5 +936,4 @@ final class BrowserViewController: NSViewController, NSTableViewDataSource, NSTa
     @objc private func contextOpen() { openSelected() }
     @objc private func contextNewTab() { openSelected(inNewTab: true) }
     @objc private func contextPackage() { if let item = selectedItems.first { navigate(item.url) } }
-    @objc private func contextCopy() { copySelectedPaths() }
 }

@@ -106,7 +106,12 @@ final class ActionButton: NSButton {
         translatesAutoresizingMaskIntoConstraints = false
         heightAnchor.constraint(equalToConstant: 30).isActive = true
         if title.isEmpty { widthAnchor.constraint(equalToConstant: 32).isActive = true }
-        else if let maximumWidth { widthAnchor.constraint(equalToConstant: min(intrinsicContentSize.width + 16, maximumWidth)).isActive = true }
+        else if let maximumWidth {
+            widthAnchor.constraint(lessThanOrEqualToConstant: maximumWidth).isActive = true
+            let preferredWidth = widthAnchor.constraint(equalToConstant: min(intrinsicContentSize.width + 16, maximumWidth))
+            preferredWidth.priority = .defaultHigh
+            preferredWidth.isActive = true
+        }
         else { widthAnchor.constraint(greaterThanOrEqualToConstant: intrinsicContentSize.width + 16).isActive = true }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -279,13 +284,14 @@ final class BrowserTabView: FolderDropSurface {
 
 @MainActor
 final class PathBar: Surface, NSTextFieldDelegate {
-    var onNavigate: ((URL) -> Void)?
     var onCommit: ((String) -> Void)?
-    private let crumbs = NSStackView()
+    var onCopyFolderPath: (() -> Void)?
     private let field = NSTextField()
+    private lazy var copyButton = ActionButton(symbol: "doc.on.doc", tooltip: L10n.text("Copy Current Folder Path")) { [weak self] in
+        self?.onCopyFolderPath?()
+    }
     private var url = FileManager.default.homeDirectoryForCurrentUser
     private var editing = false
-    private var searchResults: String?
     private let suggestions = PathSuggestionPopup()
     private(set) var suggestionTask: Task<Void, Never>?
     /// What the user typed, kept while arrow keys preview suggestions in the field.
@@ -295,20 +301,21 @@ final class PathBar: Surface, NSTextFieldDelegate {
         suggestions.onChoose = { [weak self] text in self?.chooseSuggestion(text) }
         color = .controlBackgroundColor; wantsLayer = true; layer?.cornerRadius = 5
         layer?.borderWidth = 0.5; layer?.borderColor = Palette.line.cgColor
-        crumbs.orientation = .horizontal; crumbs.spacing = 0
+        field.usesSingleLineMode = true
+        field.lineBreakMode = .byTruncatingMiddle
         field.isBordered = false; field.drawsBackground = false; field.font = .systemFont(ofSize: 12)
         field.delegate = self; field.target = self; field.action = #selector(commit)
-        field.setAccessibilityLabel(L10n.text("Folder path")); field.isHidden = true
+        field.setAccessibilityLabel(L10n.text("Folder path"))
         let edit = ActionButton(symbol: "pencil", tooltip: L10n.text("Edit folder path (⌘L)")) { [weak self] in self?.beginEditing() }
-        for view in [crumbs, field, edit] { addSubview(view); view.translatesAutoresizingMaskIntoConstraints = false }
+        for view in [field, edit, copyButton] { addSubview(view); view.translatesAutoresizingMaskIntoConstraints = false }
         NSLayoutConstraint.activate([
-            edit.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -2), edit.centerYAnchor.constraint(equalTo: centerYAnchor),
-            crumbs.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 7), crumbs.trailingAnchor.constraint(lessThanOrEqualTo: edit.leadingAnchor), crumbs.centerYAnchor.constraint(equalTo: centerYAnchor),
+            copyButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -2), copyButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            edit.trailingAnchor.constraint(equalTo: copyButton.leadingAnchor), edit.centerYAnchor.constraint(equalTo: centerYAnchor),
             field.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12), field.trailingAnchor.constraint(equalTo: edit.leadingAnchor, constant: -4), field.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    // Like Windows Explorer: a click on empty bar space (not on a crumb button) switches to the editable path.
+    // Clicking the margin also focuses the address field.
     override var mouseDownCanMoveWindow: Bool { false }
     override func mouseDown(with event: NSEvent) {
         if editing {
@@ -317,53 +324,28 @@ final class PathBar: Surface, NSTextFieldDelegate {
         }
         beginEditing()
     }
-    func update(_ url: URL, searchResults: String? = nil) {
-        self.searchResults = searchResults
-        self.url = url; field.stringValue = BrowserLocation.isThisMac(url) ? L10n.text("This Mac") : url.path
+    func update(_ location: URL) {
+        if editing && url == location { return }
+        url = location
+        editing = false
         dismissSuggestions()
-        editing = false; field.isHidden = true; crumbs.isHidden = false
-        crumbs.arrangedSubviews.forEach { crumbs.removeArrangedSubview($0); $0.removeFromSuperview() }
-        if let searchResults {
-            let icon = NSImageView(image: Palette.symbol("magnifyingglass") ?? NSImage())
-            icon.contentTintColor = .secondaryLabelColor
-            let label = NSTextField(labelWithString: L10n.text("Search Results in %1$@", searchResults))
-            label.font = .systemFont(ofSize: 12); label.lineBreakMode = .byTruncatingMiddle
-            label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-            crumbs.spacing = 9; crumbs.addArrangedSubview(icon); crumbs.addArrangedSubview(label)
-            toolTip = L10n.text("Search Results in %1$@", url.path); return
-        }
-        crumbs.spacing = 0; toolTip = url.path
-        if BrowserLocation.isThisMac(url) {
-            crumbs.addArrangedSubview(ActionButton(L10n.text("This Mac"), symbol: "desktopcomputer", tooltip: L10n.text("Devices, drives and network locations")) { [weak self] in self?.onNavigate?(BrowserLocation.thisMac) })
-            return
-        }
-        var chain: [URL] = []; var current = url.standardizedFileURL
-        while current.path != "/" { chain.insert(current, at: 0); current.deleteLastPathComponent() }
-        let root = ActionButton(symbol: "internaldrive", tooltip: "/") { [weak self] in self?.onNavigate?(URL(fileURLWithPath: "/")) }
-        crumbs.addArrangedSubview(root)
-        if chain.count > 2 {
-            let ellipsis = ActionButton("…", tooltip: L10n.text("Edit full path")) { [weak self] in self?.beginEditing() }
-            crumbs.addArrangedSubview(ellipsis); chain = Array(chain.suffix(2))
-        }
-        for component in chain {
-            let chevron = NSImageView(image: Palette.symbol("chevron.right", size: 9) ?? NSImage())
-            chevron.contentTintColor = .tertiaryLabelColor; crumbs.addArrangedSubview(chevron)
-            let name = component.path == FileManager.default.homeDirectoryForCurrentUser.path ? L10n.text("Home") : component.lastPathComponent
-            let button = ActionButton(name, tooltip: component.path, maximumWidth: 140) { [weak self] in self?.onNavigate?(component) }
-            button.lineBreakMode = .byTruncatingMiddle
-            crumbs.addArrangedSubview(button)
-        }
+        field.stringValue = BrowserLocation.isThisMac(url) ? L10n.text("This Mac") : url.path
+        field.toolTip = field.stringValue
+        copyButton.isEnabled = url.isFileURL
+    }
+    func controlTextDidBeginEditing(_ notification: Notification) {
+        editing = true
     }
     func beginEditing() {
         dismissSuggestions()
-        editing = true; crumbs.isHidden = true; field.isHidden = false
-        field.stringValue = BrowserLocation.isThisMac(url) ? L10n.text("This Mac") : url.path; typedText = field.stringValue
+        editing = true
+        typedText = field.stringValue
         // selectText(_:) would end the session makeFirstResponder just started, and ending it reverts to breadcrumbs.
         window?.makeFirstResponder(field); field.currentEditor()?.selectAll(nil)
     }
     @objc private func commit() {
         dismissSuggestions()
-        let text = field.stringValue; window?.makeFirstResponder(nil)
+        let text = field.stringValue; editing = false; update(url); window?.makeFirstResponder(nil)
         onCommit?(text)
     }
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
@@ -389,7 +371,7 @@ final class PathBar: Surface, NSTextFieldDelegate {
                 field.stringValue = typedText
                 return true
             }
-            update(url, searchResults: searchResults); window?.makeFirstResponder(nil)
+            editing = false; update(url); window?.makeFirstResponder(nil)
             return true
         default:
             return false
@@ -401,7 +383,7 @@ final class PathBar: Surface, NSTextFieldDelegate {
             dismissSuggestions()
             return
         }
-        if editing { update(url, searchResults: searchResults) }
+        if editing { editing = false; update(url) }
     }
     func controlTextDidChange(_ obj: Notification) {
         typedText = field.stringValue

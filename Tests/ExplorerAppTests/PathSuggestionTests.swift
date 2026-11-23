@@ -18,6 +18,8 @@ struct PathSuggestionTests {
         let bar = PathBar(frame: NSRect(x: 0, y: 60, width: 420, height: 34))
         window.contentView?.addSubview(bar)
         bar.update(root)
+        let visible = try #require(bar.subviews.compactMap { $0 as? NSTextField }.first)
+        #expect(!visible.isHidden && visible.stringValue == root.path)
         bar.beginEditing()
         let field = try #require(bar.subviews.compactMap { $0 as? NSTextField }.first)
         let editor = try #require(field.currentEditor() as? NSTextView)
@@ -31,6 +33,8 @@ struct PathSuggestionTests {
         }
 
         enter("Alp")
+        bar.update(root)
+        #expect(field.stringValue == "Alp")
         await bar.suggestionTask?.value
         #expect(press(#selector(NSResponder.insertTab(_:))))
         #expect(field.stringValue == "Alpha/")

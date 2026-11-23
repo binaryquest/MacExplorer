@@ -26,6 +26,41 @@ struct ContextActionsTests {
         #expect(arguments.atIndex(2)?.stringValue == urls[1].path)
     }
 
+    @Test func addressBarCopiesOnlyWhenShowingAFolder() throws {
+        _ = NSApplication.shared
+        let bar = PathBar()
+        var calls = 0
+        bar.onCopyFolderPath = { calls += 1 }
+        let button = try #require(bar.subviews.compactMap { $0 as? ActionButton }.first {
+            $0.toolTip == L10n.text("Copy Current Folder Path")
+        })
+
+        bar.update(BrowserLocation.thisMac)
+        #expect(!button.isEnabled)
+
+        bar.update(URL(fileURLWithPath: "/tmp"))
+        #expect(button.isEnabled)
+        button.performClick(nil)
+        #expect(calls == 1)
+    }
+
+    @Test func commonFoldersAndSystemLocations() throws {
+        let paths = StorageStore.commonFolders.map { $0.url }
+        let downloads = try #require(FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first)
+        #expect(paths.first?.path == "/Applications")
+        #expect(paths.contains(downloads))
+        #expect(Set(paths).count == paths.count)
+        let root = URL(fileURLWithPath: "/")
+        let dev = URL(fileURLWithPath: "/dev")
+        #expect(StorageDiscovery.visibleVolumes([root, dev]) == [root])
+        let items = try FileSystem.list(root)
+        for name in ["System", "Library", "usr"] {
+            #expect(!FileSort().apply(to: items).contains { $0.name == name })
+            #expect(FileSort().apply(to: items, showHidden: true).contains { $0.name == name })
+        }
+        #expect(FileSort().apply(to: items, showHidden: true).contains { $0.name == "usr" })
+    }
+
     @Test func fileMenus() async throws {
         _ = NSApplication.shared
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("Explorer-Menu-\(UUID())")
@@ -41,6 +76,7 @@ struct ContextActionsTests {
             browser.table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
             let menu = NSMenu(); browser.populateContextMenu(menu)
             let titles = menu.items.map(\.title)
+            #expect(titles.first == L10n.text("Copy Path"))
             #expect(titles.contains(L10n.text("Properties"))); #expect(titles.contains(L10n.text("Compress to ZIP")))
             #expect(titles.contains(L10n.text("Extract All…")) == (name == "Archive.ZIP"))
             #expect(titles.contains(L10n.text("Open With")) == (name != "Folder"))
@@ -51,6 +87,7 @@ struct ContextActionsTests {
         }
         browser.table.deselectAll(nil)
         let menu = NSMenu(); browser.populateContextMenu(menu)
+        #expect(menu.items.first?.title == L10n.text("Copy Current Folder Path"))
         #expect(menu.items.contains { $0.title == L10n.text("Properties") })
         #expect(menu.items.contains { $0.title == L10n.text("New File…") && $0.isEnabled })
         #expect(!menu.items.contains { $0.title == L10n.text("Compress to ZIP") })

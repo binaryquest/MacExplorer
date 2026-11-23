@@ -32,7 +32,8 @@ package struct LocalizationCatalog: Sendable {
             app.deletingLastPathComponent().appendingPathComponent($0, isDirectory: true)
         } : []
         // User-installed packs take precedence over copies beside Explorer.app.
-        return Self(externalDirectories: adjacent + [userDirectory])
+        let bundled = app.appendingPathComponent("Contents/Resources/Localizations", isDirectory: true)
+        return Self(externalDirectories: [bundled] + adjacent + [userDirectory])
     }()
 
     private static let userDirectory = URL.applicationSupportDirectory

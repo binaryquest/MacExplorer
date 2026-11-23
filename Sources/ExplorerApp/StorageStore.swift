@@ -7,6 +7,19 @@ final class StorageStore {
     static let changed = Notification.Name("ExplorerStorageChanged")
     private(set) var locations: [StorageLocation] = []
     private(set) var refreshing = false
+    static var commonFolders: [StorageLocation] {
+        guard !DemoData.active else { return [] }
+        let directories: [(String, FileManager.SearchPathDirectory)] = [
+            ("Desktop", .desktopDirectory), ("Downloads", .downloadsDirectory),
+            ("Documents", .documentDirectory), ("Pictures", .picturesDirectory),
+            ("Music", .musicDirectory), ("Movies", .moviesDirectory)
+        ]
+        let applications = URL(fileURLWithPath: "/Applications", isDirectory: true)
+        return [StorageLocation(url: applications, title: L10n.text("Applications"), detail: applications.path, kind: .folder)] + directories.compactMap { name, directory in
+            guard let url = FileManager.default.urls(for: directory, in: .userDomainMask).first else { return nil }
+            return StorageLocation(url: url, title: L10n.text(name), detail: url.path, kind: .folder)
+        }
+    }
     private var volumes: [String: StorageLocation] = [:]
     private var clouds: [String: StorageLocation] = [:]
     private var tasks: [Task<Void, Never>] = []

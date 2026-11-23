@@ -72,7 +72,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let launchAtLogin = NSButton(checkboxWithTitle: L10n.text("Open Explorer at login"), target: nil, action: nil)
     private let loginStatus = NSTextField(wrappingLabelWithString: "")
     private let loginSettings = NSButton(title: L10n.text("Open Login Items Settings…"), target: nil, action: nil)
-    private let hidden = NSButton(checkboxWithTitle: L10n.text("Show hidden files and folders"), target: nil, action: nil)
+    private let hidden = NSButton(checkboxWithTitle: L10n.text("Show System Files"), target: nil, action: nil)
     private let languages = InterfaceLanguage.available
     private let language = NSPopUpButton()
     var onLanguageRestart: (() -> Void)? { didSet { refreshLanguage() } }

@@ -90,11 +90,13 @@ private final class StorageCard: NSCollectionViewItem {
         loadViewIfNeeded()
         SearchHighlight.apply(location.title, to: name, query: query)
         SearchHighlight.apply(location.detail, to: subtitle, query: query, color: .secondaryLabelColor)
-        picture.image = StorageArtwork.icon(location.kind)
+        picture.image = location.kind == .folder ? NSImage(systemSymbolName: "folder.fill", accessibilityDescription: nil) : StorageArtwork.icon(location.kind)
         bar.capacity = location.capacity; bar.isHidden = location.capacity == nil
         if let capacity = location.capacity {
             capacityLabel.stringValue = L10n.text("%1$@ free of %2$@", L10n.byteCount(capacity.available), L10n.byteCount(capacity.total))
             capacityLabel.textColor = capacity.lowSpace ? .systemRed : .secondaryLabelColor
+        } else if location.kind == .folder {
+            capacityLabel.stringValue = ""
         } else {
             capacityLabel.stringValue = location.kind == .googleDrive || location.kind == .cloud ? L10n.text("Cloud storage") : L10n.text("Storage information unavailable")
             capacityLabel.textColor = .secondaryLabelColor
@@ -159,7 +161,8 @@ final class ThisMacView: NSView, NSCollectionViewDataSource, NSCollectionViewDel
         self.query = query
         let selected = selectedLocation?.id
         let values = StorageDiscovery.overview(locations, query: query)
-        sections = [(L10n.text("Devices and drives"), values.filter { !$0.isNetworkLocation }), (L10n.text("Network locations"), values.filter(\.isNetworkLocation))].filter { !$0.1.isEmpty }
+        let folders = StorageDiscovery.overview(StorageStore.commonFolders, query: query)
+        sections = [(L10n.text("Common Folders"), folders), (L10n.text("Devices and drives"), values.filter { !$0.isNetworkLocation }), (L10n.text("Network locations"), values.filter(\.isNetworkLocation))].filter { !$0.1.isEmpty }
         collection.reloadData(); flow.invalidateLayout()
         if let selected {
             for (section, entry) in sections.enumerated() where !collapsed.contains(entry.0) {
@@ -167,7 +170,7 @@ final class ThisMacView: NSView, NSCollectionViewDataSource, NSCollectionViewDel
             }
         }
         empty.stringValue = loading ? L10n.text("Discovering drives and cloud folders…") : query.isEmpty ? L10n.text("No storage locations are available.") : L10n.text("No locations match “%1$@”.", query)
-        empty.isHidden = !values.isEmpty
+        empty.isHidden = !sections.isEmpty
     }
     func location(_ path: IndexPath) -> StorageLocation? {
         guard sections.indices.contains(path.section), !collapsed.contains(sections[path.section].0), sections[path.section].1.indices.contains(path.item) else { return nil }
@@ -204,13 +207,14 @@ final class ThisMacView: NSView, NSCollectionViewDataSource, NSCollectionViewDel
     func menuNeedsUpdate(_ menu: NSMenu) {
         ContextMenu.configure(menu)
         guard let location = selectedLocation else { return }
+        menu.addItem(ContextMenu.item(L10n.text("Copy Path"), symbol: "doc.on.doc") { [weak self] in self?.copyPath() })
+        menu.addItem(.separator())
         for (title, action, symbol) in [(L10n.text("Open"), #selector(open), "externaldrive"), (L10n.text("Open in New Tab"), #selector(openInTab), "plus.square.on.square"), (L10n.text("Open in Other Pane"), #selector(openInOtherPane), "rectangle.split.2x1")] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self
             item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title); menu.addItem(item)
         }
         menu.addItem(ContextMenu.item(L10n.text("Open in New Window"), symbol: "macwindow.badge.plus") { (NSApp.delegate as? AppDelegate)?.newWindow(urls: [location.url]) })
         menu.addItem(.separator())
-        menu.addItem(ContextMenu.item(L10n.text("Copy as Path"), symbol: "link") { [weak self] in self?.copyPath() })
         menu.addItem(ExternalApplications.terminalItem(folder: location.url, window: window))
         menu.addItem(.separator())
         menu.addItem(FileProperties.item(urls: [location.url], window: window))

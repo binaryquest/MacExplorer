@@ -11,6 +11,13 @@ final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
     let titlebarTabs = TitlebarSurface()
     private let outer = ExplorerSplitView()
     private let panes = ExplorerSplitView()
+    private let previewSplit = FilePreviewSplitView()
+    private let previewSidebar = FilePreviewSidebar()
+    private(set) var showsPreview = UserDefaults.standard.object(forKey: "previewSidebar.visible") as? Bool ?? true
+    private var previewWidth: CGFloat = {
+        let width = UserDefaults.standard.double(forKey: "previewSidebar.width")
+        return width > 0 ? width : 320
+    }()
     private let toolbar = Surface()
     private let headers = Surface()
     private var headersHeight: NSLayoutConstraint!
@@ -51,14 +58,19 @@ final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
         outer.addArrangedSubview(sidebar.view); outer.addArrangedSubview(panes)
         addChild(left); panes.addArrangedSubview(left.view)
         if let right, dualPane { addChild(right); panes.addArrangedSubview(right.view) }
-        for child in [headers, toolbar, outer] { view.addSubview(child); child.translatesAutoresizingMaskIntoConstraints = false }
+        previewSplit.isVertical = true
+        previewSplit.dividerStyle = .thin
+        previewSplit.delegate = self
+        previewSplit.addArrangedSubview(outer)
+        if showsPreview { previewSplit.addArrangedSubview(previewSidebar) }
+        for child in [headers, toolbar, previewSplit] { view.addSubview(child); child.translatesAutoresizingMaskIntoConstraints = false }
         headersTop = headers.topAnchor.constraint(equalTo: view.topAnchor, constant: 32)
         NSLayoutConstraint.activate([
             headersTop, headers.leadingAnchor.constraint(equalTo: view.leadingAnchor), headers.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             toolbar.topAnchor.constraint(equalTo: headers.bottomAnchor), toolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             toolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor), toolbar.heightAnchor.constraint(equalToConstant: 47),
-            outer.topAnchor.constraint(equalTo: toolbar.bottomAnchor), outer.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            outer.leadingAnchor.constraint(equalTo: view.leadingAnchor), outer.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+            previewSplit.topAnchor.constraint(equalTo: toolbar.bottomAnchor), previewSplit.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            previewSplit.leadingAnchor.constraint(equalTo: view.leadingAnchor), previewSplit.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
         headersHeight = headers.heightAnchor.constraint(equalToConstant: dualPane ? 90 : 54); headersHeight.isActive = true
         headers.onLayout = { [weak self] in self?.layoutHeaders() }
@@ -67,6 +79,8 @@ final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
     }
     override func viewDidAppear() {
         super.viewDidAppear(); updateMinimumSize()
+        view.layoutSubtreeIfNeeded()
+        positionPreview()
         outer.setPosition(210, ofDividerAt: 0)
         if dualPane { panes.setPosition(panes.bounds.width / 2, ofDividerAt: 0) }
         activate(activeBrowser, force: true); view.window?.makeFirstResponder(activeBrowser.activeFileView)
@@ -91,6 +105,36 @@ final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
         else if dualPane, let right, view === right.view || view.isDescendant(of: right.view) || view === right.headerView || view.isDescendant(of: right.headerView)
             || right.tabBar.map({ view === $0 || view.isDescendant(of: $0) }) == true { activate(right) }
     }
+    func togglePreview() {
+        if showsPreview {
+            previewWidth = previewSidebar.frame.width
+            previewSidebar.update([])
+            previewSidebar.removeFromSuperview()
+        } else {
+            previewSplit.addArrangedSubview(previewSidebar)
+        }
+        showsPreview.toggle()
+        UserDefaults.standard.set(showsPreview, forKey: "previewSidebar.visible")
+        updateMinimumSize()
+        view.layoutSubtreeIfNeeded()
+        positionPreview()
+        activeBrowser.updateStatus()
+        view.window?.makeFirstResponder(activeBrowser.activeFileView)
+    }
+
+    private func positionPreview() {
+        guard showsPreview, previewSplit.bounds.width > 0 else { return }
+        let usable = previewSplit.bounds.width - previewSplit.dividerThickness
+        let width = max(200, min(previewWidth, usable - minimumBrowserArea))
+        previewSplit.setPosition(usable - width, ofDividerAt: 0)
+    }
+
+    func refreshPreview(from browser: BrowserViewController) {
+        guard ready, browser === activeBrowser else { return }
+        browser.previewSidebarButton?.active = showsPreview
+        if showsPreview { previewSidebar.update(browser.tab.isThisMac ? [] : browser.selectedItems) }
+    }
+
     func toggleDualPane() {
         guard view.window?.attachedSheet == nil else { return }
         if dualPane {
@@ -163,10 +207,17 @@ final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
                                         width: max(0, size.width - leftWidth - panes.dividerThickness), height: size.height)
         }
     }
-    func splitViewDidResizeSubviews(_ notification: Notification) { layoutHeaders() }
+    func splitViewDidResizeSubviews(_ notification: Notification) {
+        layoutHeaders()
+        if notification.object as? NSSplitView === previewSplit, showsPreview,
+           NSApp.currentEvent?.type == .leftMouseDragged, previewSidebar.frame.width >= 180 {
+            previewWidth = previewSidebar.frame.width
+            UserDefaults.standard.set(Double(previewWidth), forKey: "previewSidebar.width")
+        }
+    }
     private func updateMinimumSize() {
         guard let window = view.window else { return }
-        let width: CGFloat = dualPane ? 1200 : 900
+        let width: CGFloat = dualPane ? (showsPreview ? 1380 : 1200) : (showsPreview ? 1000 : 900)
         window.minSize = NSSize(width: width, height: 520)
         if window.frame.width < width {
             var frame = window.frame; frame.size.width = width
@@ -247,9 +298,27 @@ final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
         SessionStore.save(WorkspaceSession(left: left.session, right: right?.session, dualPane: dualPane, activeRight: activeBrowser === right))
     }
     func shutdown() { left.suspend(); right?.suspend() }
-    func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposedMinimumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat { splitView === outer ? 165 : 420 }
-    func splitView(_ splitView: NSSplitView, constrainMaxCoordinate proposedMaximumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat { splitView === outer ? min(300, splitView.bounds.width - (dualPane ? 840 : 620)) : splitView.bounds.width - 420 }
-    func splitView(_ splitView: NSSplitView, shouldAdjustSizeOfSubview view: NSView) -> Bool { splitView !== outer || view !== sidebar.view }
+    private let minimumTreeWidth: CGFloat = 165
+    private var minimumFileArea: CGFloat { dualPane ? 840 : 385 }
+    private var minimumBrowserArea: CGFloat {
+        let treeWidth = min(300, max(210, sidebar.view.frame.width))
+        return treeWidth + outer.dividerThickness + minimumFileArea
+    }
+
+    func splitView(_ splitView: NSSplitView, constrainMinCoordinate position: CGFloat, ofDividerAt index: Int) -> CGFloat {
+        if splitView === previewSplit { return minimumBrowserArea }
+        return splitView === outer ? minimumTreeWidth : 420
+    }
+
+    func splitView(_ splitView: NSSplitView, constrainMaxCoordinate position: CGFloat, ofDividerAt index: Int) -> CGFloat {
+        if splitView === previewSplit { return splitView.bounds.width - splitView.dividerThickness - 200 }
+        if splitView === outer {
+            let available = outer.bounds.width - outer.dividerThickness - minimumFileArea
+            return max(minimumTreeWidth, min(300, available))
+        }
+        return splitView.bounds.width - 420
+    }
+    func splitView(_ splitView: NSSplitView, shouldAdjustSizeOfSubview view: NSView) -> Bool { if splitView === previewSplit { return view !== previewSidebar }; return splitView !== outer || view !== sidebar.view }
 }
 
 @MainActor

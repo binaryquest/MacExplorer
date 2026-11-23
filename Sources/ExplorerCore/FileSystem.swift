@@ -66,9 +66,15 @@ public struct FileSort: Sendable, Equatable, Codable {
 }
 
 public enum FileSystem {
+    private static let systemDirectoryNames: Set<String> = [
+        "System", "Library", "bin", "cores", "dev", "etc", "home", "opt", "private", "sbin", "tmp", "usr", "var", "Volumes"
+    ]
+
     /// Blocking work: call from a detached task, never the main actor.
     public static func list(_ directory: URL) throws -> [FileItem] {
         try Task.checkCancellation()
+        let isHome = directory.standardizedFileURL.path == FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
+        let isRoot = directory.standardizedFileURL.path == "/"
         let manager = FileManager()
         let keys: Set<URLResourceKey> = [.isDirectoryKey, .isPackageKey, .isHiddenKey,
             .isSymbolicLinkKey, .contentModificationDateKey, .creationDateKey, .fileSizeKey, .labelNumberKey]
@@ -90,7 +96,7 @@ public enum FileSystem {
             }
             result.append(FileItem(url: url, name: url.lastPathComponent,
                 isDirectory: directory, isPackage: values?.isPackage ?? false,
-                isHidden: values?.isHidden == true || url.lastPathComponent.hasPrefix("."),
+                isHidden: values?.isHidden == true || url.lastPathComponent.hasPrefix(".") || (isRoot && systemDirectoryNames.contains(url.lastPathComponent)) || (isHome && url.lastPathComponent == "Library"),
                 isSymbolicLink: values?.isSymbolicLink ?? false,
                 modified: values?.contentModificationDate, created: values?.creationDate,
                 size: directory ? nil : values?.fileSize.map(Int64.init),

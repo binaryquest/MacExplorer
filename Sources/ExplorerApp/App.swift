@@ -19,6 +19,7 @@ struct ExplorerMain {
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var windows: [ExplorerWindowController] = []
     private var pendingURLs: [URL] = []
+    private var pendingReveals: [URL] = []
     private var ready = false
     private var languageRestartRequested = false
     private let hotKeyRegistrar = CarbonHotKeyRegistrar()
@@ -29,6 +30,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private lazy var updates = AppUpdateController()
     var current: ExplorerWindowController? {
         (NSApp.keyWindow?.windowController as? ExplorerWindowController) ?? (NSApp.mainWindow?.windowController as? ExplorerWindowController) ?? windows.last
+    }
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        NSApp.servicesProvider = self
+
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -49,8 +55,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if DemoData.active { newWindow(session: DemoData.session) }
         else if let index = args.firstIndex(of: "--folder"), index + 1 < args.count {
             newWindow(urls: [URL(fileURLWithPath: args[index + 1], isDirectory: true)])
-        } else if !pendingURLs.isEmpty {
-            newWindow(urls: pendingURLs)
+        } else if !pendingURLs.isEmpty || !pendingReveals.isEmpty {
+            accept(pendingURLs, reveal: false)
+            accept(pendingReveals, reveal: true)
+            pendingReveals = []
             pendingURLs = []
         } else {
             newWindow()
@@ -62,10 +70,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
         let urls = filenames.map { URL(fileURLWithPath: $0) }
         if !ready { pendingURLs += urls }
-        else if let current {
-            for url in urls { current.browser.openExternal(url) }
-        } else { newWindow(urls: urls) }
+        else { accept(urls, reveal: false) }
         sender.reply(toOpenOrPrint: .success)
+    }
+
+    private func accept(_ urls: [URL], reveal: Bool) {
+        if !ready {
+            if reveal { pendingReveals += urls } else { pendingURLs += urls }
+            return
+        }
+        var folders: [URL] = []
+        var selections: [URL: Set<String>] = [:]
+        for input in urls where input.isFileURL {
+            var url = input
+            if !reveal, (try? input.resourceValues(forKeys: [.isAliasFileKey]).isAliasFile) == true {
+                url = (try? URL(resolvingAliasFileAt: input, options: [.withoutUI])) ?? input
+            }
+            let info = try? url.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey])
+            let enter = url.path == "/" || (!reveal && info?.isDirectory == true && info?.isPackage != true)
+            let folder = (enter ? url : url.deletingLastPathComponent()).standardizedFileURL
+            if selections[folder] == nil { folders.append(folder); selections[folder] = [] }
+            if !enter { selections[folder, default: []].insert(FileOperationController.itemPath(url)) }
+        }
+        for folder in folders {
+            if let current { current.browser.newTab(url: folder) } else { newWindow(urls: [folder]) }
+            if let browser = current?.browser, let paths = selections[folder], !paths.isEmpty {
+                browser.tab.pendingSelections[browser.tab.selectionKey] = paths
+            }
+        }
+        guard !folders.isEmpty else { return }
+        current?.window?.deminiaturize(nil)
+        current?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc func revealItems(_ board: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        let urls = serviceFiles(from: board)
+        guard !urls.isEmpty else { error.pointee = "请选择本地文件或文件夹"; return }
+        accept(urls, reveal: true)
+    }
+
+    @objc func copyFilePaths(_ board: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        let paths = serviceFiles(from: board).map { $0.path }
+        guard !paths.isEmpty else { error.pointee = "请选择本地文件或文件夹"; return }
+        NSPasteboard.general.clearContents()
+        if !NSPasteboard.general.setString(paths.joined(separator: "\n"), forType: .string) {
+            error.pointee = "未能写入剪贴板"
+        }
+    }
+
+    private func serviceFiles(from board: NSPasteboard) -> [URL] {
+        let files = board.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        if !files.isEmpty { return files }
+        let paths = board.propertyList(forType: .init("NSFilenamesPboardType")) as? [String] ?? []
+        return paths.map { URL(fileURLWithPath: $0) }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -213,6 +271,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     @objc func copyPath(_ sender: Any?) { current?.browser.copySelectedPaths() }
     @objc func filter(_ sender: Any?) { current?.browser.focusFilter() }
     @objc func recursiveSearch(_ sender: Any?) { current?.browser.focusRecursiveSearch() }
+    @objc func toggleSidebarPreview(_ sender: Any?) { current?.workspace.togglePreview() }
     @objc func toggleDual(_ sender: Any?) { current?.workspace.toggleDualPane() }
     @objc func otherPane(_ sender: Any?) { current?.workspace.focusOtherPane() }
     @objc func pinFolder(_ sender: Any?) { current?.browser.togglePin() }
@@ -239,6 +298,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if NSApp.keyWindow?.firstResponder is NSTextView, action == .trash || action == .rename { return false }
             return current?.browser.canPerformFileAction(action) == true
         }
+        if item.action == #selector(toggleSidebarPreview) { item.state = current?.workspace.showsPreview == true ? .on : .off }
         if item.action == #selector(toggleDual) { item.state = current?.workspace.dualPane == true ? .on : .off }
         if item.action == #selector(otherPane) { return current?.workspace.dualPane == true }
         if item.action == #selector(copyOther), let current { return !(NSApp.keyWindow?.firstResponder is NSTextView) && current.workspace.canTransfer(from: current.browser, move: false) }
@@ -317,10 +377,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         add(view, L10n.text("Quick Look"), #selector(preview))
         view.addItem(.separator())
         add(view, L10n.text("Refresh"), #selector(refresh), "r")
-        add(view, L10n.text("Show Hidden Files"), #selector(hidden), ".", [.command, .shift])
+        add(view, L10n.text("Show System Files"), #selector(hidden), ".", [.command, .shift])
         add(view, L10n.text("Search"), #selector(filter), "f")
         add(view, L10n.text("Search Subfolders"), #selector(recursiveSearch), "f", [.command, .shift])
         view.addItem(.separator())
+        add(view, "预览栏", #selector(toggleSidebarPreview), "p", [.command, .shift])
         add(view, L10n.text("Dual Pane"), #selector(toggleDual), "d", [.command, .shift])
         add(view, L10n.text("Focus Other Pane"), #selector(otherPane), String(UnicodeScalar(NSF6FunctionKey)!), [])
         add(view, L10n.text("Pin Current Folder"), #selector(pinFolder), "d")

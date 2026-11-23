@@ -24,6 +24,7 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
     var onNewTab: ((URL) -> Void)?
     var onOtherPane: ((URL) -> Void)?
     var showHidden = false
+    private let airDrop = FolderNode(title: L10n.text("AirDrop"), url: nil, symbol: NSImage(systemSymbolName: "airdrop", accessibilityDescription: nil) == nil ? "dot.radiowaves.left.and.right" : "airdrop", children: [])
     private var roots: [FolderNode] = []
     private var syncing = false
     private var syncTask: Task<Void, Never>?
@@ -90,7 +91,10 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
         let networks = locations.filter(\.isNetworkLocation).map {
             FolderNode(title: $0.title, url: $0.url, symbol: $0.kind == .network ? "network" : "cloud.fill")
         }
-        roots = [FolderNode(title: L10n.text("Favorites"), url: nil, section: true, children: pins),
+        let common = StorageStore.commonFolders.map { FolderNode(title: $0.title, url: $0.url, symbol: favoriteSymbol($0.url)) }
+        let commonPaths = Set(common.compactMap { $0.url?.path })
+        roots = common.isEmpty ? [] : [FolderNode(title: L10n.text("Common Folders"), url: nil, section: true, children: [airDrop] + common)]
+        roots += [FolderNode(title: L10n.text("Favorites"), url: nil, section: true, children: pins.filter { !commonPaths.contains($0.url?.path ?? "") }),
                  FolderNode(title: L10n.text("This Mac"), url: BrowserLocation.thisMac, symbol: "desktopcomputer", children: devices)]
         if !networks.isEmpty { roots.append(FolderNode(title: L10n.text("Network locations"), url: nil, section: true, children: networks)) }
         syncing = true; outline.reloadData(); roots.forEach { outline.expandItem($0) }; syncing = false
@@ -191,7 +195,7 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
     private func favoriteSymbol(_ url: URL) -> String {
         if DemoData.active, url == DemoData.root { return "house.fill" }
         if url == FileManager.default.homeDirectoryForCurrentUser { return "house.fill" }
-        return ["Desktop": "desktopcomputer", "Downloads": "arrow.down.circle.fill", "Documents": "doc.text.fill", "Pictures": "photo.fill", "Music": "music.note", "Movies": "film.fill"][url.lastPathComponent] ?? "folder.fill"
+        return ["Applications": "square.grid.2x2", "Desktop": "desktopcomputer", "Downloads": "arrow.down.circle.fill", "Documents": "doc.text.fill", "Pictures": "photo.fill", "Music": "music.note", "Movies": "film.fill"][url.lastPathComponent] ?? "folder.fill"
     }
     func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? { SidebarRowView() }
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
@@ -213,14 +217,28 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
         }
     }
     func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool { (item as? FolderNode)?.section == true }
-    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool { (item as? FolderNode)?.url != nil }
+    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
+        guard let node = item as? FolderNode else { return false }
+        if node === airDrop {
+            let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.finder")?
+                .appendingPathComponent("Contents/Applications/AirDrop.app")
+            if let url, FileManager.default.fileExists(atPath: url.path) {
+                Task { @MainActor in
+                    do { _ = try await NSWorkspace.shared.openApplication(at: url, configuration: .init()) }
+                    catch { NSApp.presentError(error) }
+                }
+            } else { NSSound.beep() }
+            return false
+        }
+        return node.url != nil
+    }
     func outlineView(_ outlineView: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat { (item as? FolderNode)?.section == true ? 33 : 29 }
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
         guard let node = item as? FolderNode else { return nil }
         let cell = NSTableCellView()
         let label = NSTextField(labelWithString: node.title); label.lineBreakMode = .byTruncatingMiddle
         label.font = .systemFont(ofSize: node.section ? 11 : 12, weight: node.section ? .semibold : .regular)
-        label.textColor = node.section || node.url == nil ? .secondaryLabelColor : .labelColor
+        label.textColor = node.section || (node.url == nil && node !== airDrop) ? .secondaryLabelColor : .labelColor
         label.translatesAutoresizingMaskIntoConstraints = false; cell.textField = label; cell.addSubview(label)
         let leading: NSLayoutXAxisAnchor
         if !node.section {
@@ -261,6 +279,13 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
         ContextMenu.configure(menu)
         let row = outline.clickedRow >= 0 ? outline.clickedRow : outline.selectedRow
         guard let node = outline.item(atRow: row) as? FolderNode, let url = node.url else { return }
+        if url.isFileURL {
+            menu.addItem(ContextMenu.item(L10n.text("Copy Path"), symbol: "doc.on.doc") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(url.path, forType: .string)
+            })
+            menu.addItem(.separator())
+        }
         func add(_ title: String, _ action: Selector, value: Any, enabled: Bool = true, symbol: String = "folder") {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
             item.target = self; item.representedObject = value; item.isEnabled = enabled
@@ -273,7 +298,6 @@ final class FolderSidebar: NSViewController, NSOutlineViewDataSource, NSOutlineV
         if let window = view.window { menu.addItem(FileColorMenu.shared.item(urls: [url], summaries: [node.finderColors], window: window)) }
         menu.addItem(.separator())
         add(FavoriteStore.shared.favorites.contains(url) ? L10n.text("Unpin from Favorites") : L10n.text("Pin to Favorites"), #selector(pinNode(_:)), value: url, symbol: "pin")
-        menu.addItem(ContextMenu.item(L10n.text("Copy as Path"), symbol: "link") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(url.path, forType: .string) })
         menu.addItem(.separator())
         menu.addItem(ExternalApplications.terminalItem(folder: url, window: view.window))
         menu.addItem(.separator())

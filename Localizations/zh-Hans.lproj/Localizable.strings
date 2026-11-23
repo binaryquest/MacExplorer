@@ -96,6 +96,7 @@
 "Copy" = "复制";
 "Copy (⌘C or Ctrl+C)" = "复制（⌘C 或 Ctrl+C）";
 "Copy Path" = "复制路径";
+"Copy Current Folder Path" = "复制当前文件夹路径";
 "Copy as Path" = "复制为路径";
 "Copy selection to other pane (⌃⇧C)" = "将选择复制到其他窗格 (⌃⇧C)";
 "Copy to Other Pane" = "复制到其他窗格";
@@ -125,7 +126,7 @@
 "Devices and drives" = "设备和驱动器";
 "Devices, drives and network locations" = "设备、驱动器和网络位置";
 "Discovering drives and cloud folders…" = "正在发现驱动器和云文件夹...";
-"Documents" = "文件";
+"Documents" = "文稿";
 "Double-click or press Return to open this location." = "双击或按 Return 键打开此位置。";
 "Download and install updates automatically" = "自动下载并安装更新";
 "Downloads" = "下载";
@@ -422,3 +423,9 @@
 "Yesterday" = "昨天";
 "macOS did not return the item's Trash location." = "macOS 未返回项目的垃圾箱位置。";
 "“%1$@” already exists" = "“%1$@”已经存在";
+"Common Folders" = "常用文件夹";
+"Music" = "音乐";
+"Movies" = "影片";
+"AirDrop" = "隔空投送";
+"Show System Files" = "显示系统文件";
+"Show System Files (⇧⌘.)" = "显示系统文件 (⇧⌘.)";

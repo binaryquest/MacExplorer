@@ -10,7 +10,7 @@ extension BrowserViewController {
         searchOptions.isHidden = tab.isThisMac
         closeSearchButton?.isHidden = tab.query.isEmpty
         updateSearchMenuState()
-        pathBar.update(tab.history.current, searchResults: tab.isRecursiveSearch ? title(for: tab.history.current) : nil)
+        pathBar.update(tab.history.current)
         tabChips[tab.id]?.update(title: tabTitle(tab), active: true)
         workspace?.updateWindowTitle()
         if tab.isThisMac {

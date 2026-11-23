@@ -29,12 +29,14 @@ APP_STAGE="$STAGING_ROOT/Explorer.app"
 mkdir -p "$APP_STAGE/Contents/MacOS" "$APP_STAGE/Contents/Resources" "$APP_STAGE/Contents/Frameworks"
 cp "$BIN_PATH/Explorer" "$APP_STAGE/Contents/MacOS/Explorer"
 cp Support/Info.plist "$APP_STAGE/Contents/Info.plist"
+ditto Sources/ExplorerCore/Resources/Markdown "$APP_STAGE/Contents/Resources/Markdown"
 ditto Sources/ExplorerCore/Resources/en.lproj "$APP_STAGE/Contents/Resources/en.lproj"
 ditto "$FRAMEWORK" "$APP_STAGE/Contents/Frameworks/Sparkle.framework"
 if [[ ! -f .build/AppIcon.icns || scripts/generate-icon.swift -nt .build/AppIcon.icns ]]; then
   swift -module-cache-path "$PROJECT_ROOT/.build/module-cache" scripts/generate-icon.swift "$PROJECT_ROOT/.build/AppIcon.iconset"
 fi
 cp .build/AppIcon.icns "$APP_STAGE/Contents/Resources/AppIcon.icns"
+ditto Localizations/zh-Hans.lproj "$APP_STAGE/Contents/Resources/Localizations/zh-Hans.lproj"
 cp LICENSE "$APP_STAGE/Contents/Resources/LICENSE.txt"
 ditto Support/Licenses "$APP_STAGE/Contents/Resources/Licenses"
 if (( RELEASE_BUILD )); then
